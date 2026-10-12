@@ -1,0 +1,12 @@
+# Inventario de endpoints por rol (SEGURIDAD-Y-AUTORIZACION.md §5, QA-09).
+#
+# Toda ruta del URLConf debe tener una fila aquí con el código esperado para cada actor.
+# Actores: visitor, user, buyer_member, supplier_member, moderator, admin.
+# La prueba completa por rol es LX-18 (SEC/BD); test_endpoint_inventory.py ya exige que
+# ninguna ruta quede fuera de este archivo.
+
+endpoints:
+  - route: /api/v1/schema/
+    methods:
+      GET: {visitor: 200, user: 200, buyer_member: 200, supplier_member: 200, moderator: 200, admin: 200}
+    notes: Solo existe con LANCEX_SERVE_SCHEMA=true (local/pruebas). Enumera rutas de staff; no exponer en una demo pública.

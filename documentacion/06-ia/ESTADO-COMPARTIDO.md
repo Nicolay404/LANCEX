@@ -6,7 +6,7 @@
 
 - **Fase:** definición cerrada; siguiente paso Fase 0 de `PLAN-DE-DESARROLLO.md`.
 - Frontend: no inicializado (LX-07).
-- Backend: no inicializado (LX-04).
+- Backend: inicializado en `architect-lancex` (LX-04, LX-05, LX-17 base): settings por entorno, `apps/core` (TimeSource, request_id, errores, logging Firestore, capacidades, DenyAll/HasCapability, check `lancex.E001`, StrictInputMixin) y modelos `User`, `UserSession`, `Organization`, `OrganizationMembership` (`managed = False`). Pendiente de PR a `main`.
 - Esquema: diccionario cerrado en `MODELO-DE-DATOS-INICIAL.md`; migración SQL base pendiente (LX-02).
 - API: contrato v1 aprobado; OpenAPI se generará con drf-spectacular.
 - CI: pendiente (LX-09).
@@ -51,3 +51,4 @@ Formato: `YYYY-MM-DDTHH:mm:ss-05:00`: decisión/avance, issue/PR, impacto en rol
 
 - `2026-10-11T13:16:54-05:00`: definición completa del proyecto (ADR-0001 a ADR-0005, reglas, modelo, contrato API, calidad, plan). Sin issue/PR aún (cambios en copia local de `main`). Impacto: todos los roles pueden iniciar Fase 0. Siguiente acción: revisar en equipo, subir en rama `docs/architect/definicion-completa` y abrir PR.
 - `2026-10-11T13:39:46-05:00`: roles y permisos, pantallas por rol, funcionamiento del sistema, modelo de amenazas y ADR-0006; reglas nuevas (cuentas, límites, reportes, conflictos de interés, relanzamiento); tablas `report`, `django_cache`, `job_heartbeat`; `platform_role` reemplaza a `is_staff`. Sin PR aún. Impacto: todos los roles (nuevas tareas LX-17 a LX-19, LX-37, LX-38, LX-77 a LX-80). Siguiente acción: revisión en equipo.
+- `2026-10-11T19:42:04-05:00`: backend inicializado (LX-04, LX-05, LX-17 base) en `architect-lancex`, sin PR aún. Impacto: BD debe crear en la migración base las columnas que usan los modelos (ver handoff de BD); backend puede construir servicios y vistas sobre `apps/core`; frontend sin cambios de contrato. Siguiente acción: PR a `main`, luego LX-06 al recibir LX-02.

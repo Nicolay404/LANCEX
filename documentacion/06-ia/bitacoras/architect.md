@@ -38,3 +38,39 @@
 - Pruebas ejecutadas y resultado real: ninguna (solo documentación).
 - Riesgos/bloqueos: revocar sesiones por usuario requiere `SessionStore` propio con `user_id` en `django_session`.
 - Handoff/siguiente paso: BD agrega `report`, `django_cache`, `job_heartbeat` y columnas de `app_user` a la migración base (LX-02).
+
+## 2026-10-11T19:20:19-05:00: INICIO: LX-04, LX-05, LX-17 (sin PR todavía)
+- Humano responsable: Nicolay.
+- Herramienta/modelo IA: Claude (claude-opus-5-5).
+- Rama y commit: `architect-lancex` @ `5d82b14`.
+- Objetivo: inicializar `backend/` (Django 5.2 + DRF + drf-spectacular + psycopg 3 + django-environ), núcleo transversal `apps/core` (TimeSource, request_id, errores, logging a Firestore) y autorización por capacidades (DenyAll, HasCapability, system check `lancex.E001`, StrictInputMixin). LX-06 queda a la espera de la migración base (LX-02).
+- Plan aprobado por el humano: "confío en ti, crea"; foco primero en arquitectura.
+
+## 2026-10-11T19:42:04-05:00: CIERRE: LX-04, LX-05, LX-17 base (sin PR todavía)
+- Humano responsable: Nicolay.
+- Herramienta/modelo IA: Claude (claude-opus-5-5).
+- Rama y commit: `architect-lancex` sobre `5d82b14`, cambios sin commit (el humano hará el commit).
+- Objetivo: inicializar el backend con la arquitectura de las ADR 0001 a 0006.
+- Archivos/documentos modificados: nuevos `backend/{manage.py, conftest.py, pyproject.toml, requirements.txt, requirements-dev.txt}`, `backend/config/**`, `backend/apps/**` (core, accounts, organizations, catalog, auctions, audit, notifications con capas api/services/domain), `backend/tests/**`, `firebase/firestore.rules`; actualizados `backend/README.md`, `backend/.env.example`, `ESTADO-COMPARTIDO.md`, handoffs `architect.md` y `database.md`, `CONFIGURACION-LOCAL.md`; eliminado `backend/.gitkeep`.
+- Decisiones/supuestos:
+  - Permisos declarativos con fábricas `HasCapability(cap)`, `HasOrgCapability(cap)`, `ByMethod(GET=..., POST=...)` y `Public`; el check `lancex.E001` inspecciona `permission_classes`. Además: E002 capacidad inexistente, E003 prohibido sobrescribir `get_permissions`, E004 el global debe ser `DenyAll`.
+  - Capacidades en Python puro (`apps/core/capabilities.py`), fallo cerrado; el cargador ORM se inyecta por `LANCEX_PRINCIPAL_LOADER` para que `core` no dependa de apps de dominio. `reverse.bid` y conflictos de interés por subasta quedan como condición de objeto en servicios.
+  - `TimeSource.db_now()` = `clock_timestamp()`; `db_transaction_now()` = `now()`.
+  - No autenticado en endpoint protegido → `401 AUTH_REQUIRED`; sin capacidad → `403 FORBIDDEN`; CSRF → `403 CSRF_FAILED`; error no controlado → `500 INTERNAL_ERROR` sin detalles. Se agregaron `METHOD_NOT_ALLOWED` (405), `NOT_ACCEPTABLE` (406) y `UNSUPPORTED_MEDIA_TYPE` (415), no listados en el contrato: revisar e incorporarlos al contrato.
+  - Logs a Firestore: documento con lista blanca de campos del esquema de ADR-0002 (más `reason`, `capability`, `fields`, `view`, `serializer` para eventos de seguridad); la excepción se resume como tipo + archivo:línea, sin mensaje. Si `FIRESTORE_LOGS_ENABLED=true` sin credencial, solo consola. Se excluyen los logs del propio cliente de Firebase para evitar bucles.
+  - `UserSession` (`django_session` + `user_id`) y `SessionStore` propio con `revoke_all_sessions()`; `django.contrib.sessions` no se instala para evitar dos modelos sobre la misma tabla.
+  - Se adelantan `Organization` y `OrganizationMembership` (de LX-06) porque las capacidades contextuales las necesitan.
+  - El esquema OpenAPI (`/api/v1/schema/`) solo se sirve con `LANCEX_SERVE_SCHEMA` (por defecto = DEBUG), porque enumera rutas de staff.
+  - Throttle `anon` 120/min: valor no definido en ADR-0004, supuesto a confirmar.
+- Pruebas ejecutadas y resultado real:
+  - `python manage.py check` (con `DJANGO_SECRET_KEY`/`DATABASE_URL` ficticios, `FIRESTORE_LOGS_ENABLED=false`): `System check identified no issues (0 silenced).`
+  - `check` con URLConf de prueba que tiene una vista sin permiso: `(lancex.E001) La vista /api/v1/forgotten/ (UndeclaredView) no declara permiso`.
+  - `python -m pytest`: `112 passed, 2 skipped` (las 2 omitidas son de `TimeSource` y requieren PostgreSQL local: Docker no estaba corriendo).
+  - `ruff check .`: `All checks passed!`; `ruff format --check .`: sin cambios.
+  - `python manage.py emit_test_log` con Firestore activado y sin credencial: la app no falla y avisa por stderr. **No verificado** el envío real a Firestore (no hay proyecto Firebase ni cuenta de servicio configurados).
+- Riesgos/bloqueos:
+  - Entorno local con Python 3.14.7 (ADR-0004 pide 3.12); `requires-python >= 3.12` y ruff apunta a 3.12. CI debe correr en 3.12.
+  - Criterio "un WARNING llega a Firestore" verificado solo con doble en memoria; falta prueba real (LX-01/LX-05 humano).
+  - Pruebas de BD pendientes hasta LX-02/LX-03 (Postgres local con SQL).
+  - Firestore rules en `firebase/firestore.rules` aún no publicadas en el proyecto.
+- Handoff/siguiente paso: handoff a BD (columnas que exigen los modelos, `search_path`, base `lancex_test`). Siguiente: commit en `architect-lancex`, PR a `main`, después LX-11 (auth) y LX-06 al recibir LX-02.

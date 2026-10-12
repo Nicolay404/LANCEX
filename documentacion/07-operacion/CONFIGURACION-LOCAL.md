@@ -28,7 +28,7 @@ Se comparten por un gestor de contraseñas o un canal privado acordado, nunca po
 cd backend
 python -m venv .venv
 # Windows: .venv\Scripts\activate   |   Linux/macOS: source .venv/bin/activate
-python -m pip install -r requirements.txt
+python -m pip install -r requirements-dev.txt   # incluye pytest y ruff
 copy .env.example .env               # o cp; completar valores
 python manage.py check
 python manage.py runserver 8000
