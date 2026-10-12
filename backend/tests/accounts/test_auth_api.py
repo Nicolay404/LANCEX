@@ -208,7 +208,9 @@ class TestAuthFlow:
         register(first, email=email)
         second.post("/api/v1/auth/login/", {"email": email, "password": STRONG}, format="json")
 
-        wrong = first.post("/api/v1/auth/password/", {"current_password": "x", "new_password": STRONG + "!"})
+        wrong = first.post(
+            "/api/v1/auth/password/", {"current_password": "x", "new_password": STRONG + "!"}, format="json"
+        )
         assert code(wrong) == "STEP_UP_FAILED"
 
         new = STRONG + "-nuevo"

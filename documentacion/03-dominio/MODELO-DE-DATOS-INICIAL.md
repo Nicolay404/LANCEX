@@ -9,7 +9,7 @@
 - Instantes `timestamptz`. `created_at DEFAULT now()`. Horas de negocio con `clock_timestamp()` dentro de la transacción.
 - Enumerados como `text` + `CHECK`.
 - FK con `ON DELETE RESTRICT` por defecto (no se borra historial). Los usuarios se desactivan, no se eliminan.
-- Todas las tablas: `ENABLE ROW LEVEL SECURITY` sin políticas (la Data API no tiene acceso) y `GRANT` explícitos a `lancex_app`.
+- Todas las tablas: `ENABLE ROW LEVEL SECURITY` con una única política para `lancex_app` (ADR-0007); `anon`/`authenticated` sin grants ni políticas, y `GRANT` explícitos a `lancex_app`.
 
 ## Diagrama entidad-relación
 
@@ -257,3 +257,16 @@ Grants: `lancex_app` solo `INSERT, SELECT`. Trigger `BEFORE UPDATE OR DELETE` qu
 ## Datos de demostración
 
 Comando `python manage.py seed_demo` (solo DML, idempotente, se niega a correr si `APP_ENV=production`): categorías, 6 usuarios de prueba (4 `user`, 1 `moderator`, 1 `admin`; el admin reemplaza a `createsuperuser`), 2 organizaciones verificadas (una compradora, una proveedora) y subastas de ejemplo de cada modalidad con horarios relativos a la hora de PostgreSQL.
+
+## Restricciones adicionales de la migración base
+
+Implementadas en `20261011180000_baseline_lancex.sql` además de lo descrito arriba:
+
+- `app_user.email` en minúsculas (`CHECK`); `display_name` de 3 a 60 caracteres.
+- `listing.updated_at`, `auction.updated_at` y `proxy_bid_limit.updated_at` se actualizan por trigger con `clock_timestamp()`.
+- `listing_image.position` entre 0 y 5 (máximo 6 imágenes).
+- `auction`: matriz de mecanismos (ADR-0005), proxy solo en `ascending`, origen (`listing_id`, o `procurement_request_id` + `organization_id` según mecanismo), parámetros de soft close/vela solo con su política, `outcome` solo en `closed`, `settlement_status` solo con `awarded`; importes entre 0.01 y 999 999 999.99; `procurement_request_id` único.
+- `bid`: `source = 'proxy'` si y solo si hay `proxy_limit_id`; las pujas manuales exigen `idempotency_key`.
+- `sealed_offer`: `UNIQUE (auction_id, seq)` y `UNIQUE (auction_id, bidder_user_id, idempotency_key)`.
+- `rating`: nadie se califica a sí mismo.
+- `audit_event`: además de `UPDATE`/`DELETE`, un trigger rechaza `TRUNCATE`.

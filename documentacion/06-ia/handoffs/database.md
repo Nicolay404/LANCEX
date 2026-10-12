@@ -11,6 +11,15 @@
 
 ## Handoffs activos
 
+- Fecha/hora: 2026-10-11T21:02:57-05:00
+- Issue/PR: LX-02, LX-03 (borrador hecho por ARQ a pedido del humano; rama `backend-lancex`)
+- Para rol: Base de datos
+- Estado: **requiere revisión** antes de aplicar
+- Contexto: migración base completa y scripts del Postgres local. Probada en `postgres:17` local: se aplica sin errores y 182 pruebas pasan conectadas como `lancex_app`. RLS con política solo para `lancex_app` (ADR-0007).
+- Archivos, tablas o endpoints afectados: `supabase/migrations/20261011180000_baseline_lancex.sql`, `scripts/db/{bootstrap_local.sql,local_after.sql,apply_local.sh,apply_local.ps1}`; las 20 tablas del modelo.
+- Acción requerida: 1) revisar el SQL; 2) tras merge a `main`: instalar la Supabase CLI, `supabase init` (no sobrescribe `migrations/`), `supabase link --project-ref sikzfznkirzpjpqsjfsd`, `supabase db push --dry-run`, `supabase db push`, `supabase migration list` (piden la contraseña de `postgres`); 3) en el SQL Editor: `ALTER ROLE lancex_app WITH PASSWORD '...'` y compartirla por canal privado; 4) confirmar que la versión mayor de PostgreSQL del proyecto coincide con `postgres:17` del CI (si no, ajustar `ci.yml` y el comando de Docker).
+- Cómo validar: en el SQL Editor `SET ROLE lancex_app; SHOW search_path; SELECT count(*) FROM lancex.app_user;`; luego, desde el backend con el `.env` completo, `python manage.py check --database default`.
+
 - Fecha/hora: 2026-10-11T20:13:52-05:00
 - Issue/PR: LX-11, LX-12 (rama `backend-lancex`)
 - Para rol: Base de datos / seguridad (LX-16, LX-18)

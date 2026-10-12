@@ -10,3 +10,4 @@
 | [0006](ADR-0006-AUTORIZACION-Y-CARGA-POR-ROL.md) | Autorización por capacidades y carga de la interfaz por rol | Aceptada |
 
 Para cambiar una decisión aceptada se crea una ADR nueva que la reemplace; no se reescribe el historial. Plantilla: Contexto, Decisión, Alternativas consideradas, Consecuencias.
+- [ADR-0007](ADR-0007-RLS-CON-POLITICA-PARA-LANCEX-APP.md): RLS con política exclusiva para `lancex_app` (modifica ADR-0003).

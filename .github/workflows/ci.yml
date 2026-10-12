@@ -40,7 +40,7 @@ jobs:
           --health-retries 10
     env:
       DJANGO_SETTINGS_MODULE: config.settings.test
-      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:54329/lancex_test
+      TEST_DATABASE_URL: postgres://lancex_app:lancex_app@localhost:54329/lancex_test  # rol sin DDL, como en Supabase
       FIRESTORE_LOGS_ENABLED: "false"
       PGPASSWORD: postgres
     steps:
@@ -62,16 +62,14 @@ jobs:
 
       - name: Aplicar esquema SQL al PostgreSQL de servicio
         working-directory: .
+        env:
+          PSQL: psql -h localhost -p 54329 -U postgres
         run: |
-          shopt -s nullglob
-          PSQL="psql -h localhost -p 54329 -U postgres -d lancex_test -v ON_ERROR_STOP=1 -q"
-          if [ -f scripts/db/bootstrap_local.sql ]; then $PSQL -f scripts/db/bootstrap_local.sql; fi
-          files=(supabase/migrations/*.sql)
-          for f in "${files[@]}"; do echo "Aplicando $f"; $PSQL -f "$f"; done
-          if [ ${#files[@]} -gt 0 ]; then
+          bash ./scripts/db/apply_local.sh
+          if ls supabase/migrations/*.sql >/dev/null 2>&1; then
             echo "LANCEX_REQUIRE_DB=1" >> "$GITHUB_ENV"   # con esquema, las pruebas de BD no pueden omitirse
           else
-            echo "::warning::Sin supabase/migrations (LX-02 pendiente): las pruebas de BD se omiten."
+            echo "::warning::Sin supabase/migrations: las pruebas de BD se omiten."
           fi
 
       - name: System checks (incluye lancex.E001..E004)
