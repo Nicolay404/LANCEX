@@ -12,7 +12,7 @@ from .base import build_database, env
 
 LOCAL_DB_HOSTS = {"localhost", "127.0.0.1", "::1", "postgres"}  # "postgres": servicio de CI
 
-TEST_DATABASE_URL = env("TEST_DATABASE_URL", default="postgres://postgres:postgres@localhost:54329/lancex_test")
+TEST_DATABASE_URL = env("TEST_DATABASE_URL", default="postgres://lancex_app:lancex_app@localhost:54329/lancex_test")
 if urlparse(TEST_DATABASE_URL).hostname not in LOCAL_DB_HOSTS:
     raise ImproperlyConfigured("TEST_DATABASE_URL debe apuntar a un PostgreSQL local, nunca a Supabase.")
 

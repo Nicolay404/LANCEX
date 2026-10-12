@@ -83,3 +83,23 @@ def django_db_setup():
 ## Prueba de deriva modelo ↔ SQL (obligatoria en CI)
 
 Para cada modelo de LANCEX se ejecuta un `SELECT` de todas sus columnas con `LIMIT 1`. Si un campo del modelo no existe en la tabla, la prueba falla. CI también falla si aparece cualquier carpeta `migrations/` dentro de `backend/apps/`.
+
+## Estado de la implementación (LX-02 / LX-03)
+
+- Migración base: `supabase/migrations/20261011180000_baseline_lancex.sql` (20 tablas, RLS en todas con política solo para `lancex_app`, ver ADR-0007).
+- Postgres local de pruebas:
+
+  ```powershell
+  docker run -d --name lancex-pg -e POSTGRES_PASSWORD=postgres -p 54329:5432 postgres:17
+  .\scripts\db\apply_local.ps1        # Linux/macOS/Git Bash: ./scripts/db/apply_local.sh
+  cd backend; $env:LANCEX_REQUIRE_DB="1"; python -m pytest
+  ```
+
+  `apply_local` **borra y recrea** `lancex_test`, aplica `bootstrap_local.sql`, todas las migraciones y `local_after.sql` (contraseña local `lancex_app`, solo para pruebas). Las pruebas se conectan como `lancex_app` para validar también los grants.
+- **Contraseña de `lancex_app` en Supabase:** la migración crea el rol sin contraseña. Tras `supabase db push`, el responsable de BD la fija en el SQL Editor del dashboard (nunca en Git):
+
+  ```sql
+  ALTER ROLE lancex_app WITH PASSWORD '<generada en el gestor de contraseñas>';
+  ```
+
+  y la comparte por el canal privado. Cada integrante la pone en `DATABASE_URL` de su `backend/.env` con el usuario `lancex_app.<ref>` y el host del *session pooler*.

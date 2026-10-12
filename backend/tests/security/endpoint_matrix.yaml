@@ -10,3 +10,47 @@ endpoints:
     methods:
       GET: {visitor: 200, user: 200, buyer_member: 200, supplier_member: 200, moderator: 200, admin: 200}
     notes: Solo existe con LANCEX_SERVE_SCHEMA=true (local/pruebas). Enumera rutas de staff; no exponer en una demo pública.
+
+  - route: /api/v1/auth/csrf/
+    methods:
+      GET: {visitor: 204, user: 204, buyer_member: 204, supplier_member: 204, moderator: 204, admin: 204}
+
+  - route: /api/v1/auth/register/
+    methods:
+      POST: {visitor: 201, user: 201, buyer_member: 201, supplier_member: 201, moderator: 201, admin: 201}
+    notes: Público. Con email nuevo y CSRF; 409 EMAIL_ALREADY_REGISTERED si existe.
+
+  - route: /api/v1/auth/login/
+    methods:
+      POST: {visitor: 200, user: 200, buyer_member: 200, supplier_member: 200, moderator: 200, admin: 200}
+    notes: Público. Con las credenciales del propio actor; 401 INVALID_CREDENTIALS genérico.
+
+  - route: /api/v1/auth/logout/
+    methods:
+      POST: {visitor: 401, user: 204, buyer_member: 204, supplier_member: 204, moderator: 204, admin: 204}
+
+  - route: /api/v1/auth/me/
+    methods:
+      GET: {visitor: 401, user: 200, buyer_member: 200, supplier_member: 200, moderator: 200, admin: 200}
+      PATCH: {visitor: 401, user: 200, buyer_member: 200, supplier_member: 200, moderator: 200, admin: 200}
+    notes: PATCH solo acepta display_name; otro campo -> 400 UNKNOWN_FIELD.
+
+  - route: /api/v1/auth/password/
+    methods:
+      POST: {visitor: 401, user: 204, buyer_member: 204, supplier_member: 204, moderator: 204, admin: 204}
+    notes: "Step-up. Contraseña actual incorrecta -> 403 STEP_UP_FAILED."
+
+  - route: /api/v1/categories/
+    methods:
+      GET: {visitor: 200, user: 200, buyer_member: 200, supplier_member: 200, moderator: 200, admin: 200}
+
+  - route: /api/v1/listings/
+    methods:
+      POST: {visitor: 401, user: 201, buyer_member: 201, supplier_member: 201, moderator: 403, admin: 403}
+    notes: "Staff no vende. Máximo 50 por usuario -> 409 LIMIT_REACHED."
+
+  - route: /api/v1/listings/{listing_id}/
+    methods:
+      GET: {visitor: 401, user: 404, buyer_member: 404, supplier_member: 404, moderator: 403, admin: 403}
+      PATCH: {visitor: 401, user: 404, buyer_member: 404, supplier_member: 404, moderator: 403, admin: 403}
+    notes: "Con una publicación ajena. El dueño recibe 200; con subasta abierta, PATCH -> 409 LISTING_LOCKED."

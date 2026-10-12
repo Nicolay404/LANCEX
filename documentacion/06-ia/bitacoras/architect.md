@@ -74,3 +74,53 @@
   - Pruebas de BD pendientes hasta LX-02/LX-03 (Postgres local con SQL).
   - Firestore rules en `firebase/firestore.rules` aún no publicadas en el proyecto.
 - Handoff/siguiente paso: handoff a BD (columnas que exigen los modelos, `search_path`, base `lancex_test`). Siguiente: commit en `architect-lancex`, PR a `main`, después LX-11 (auth) y LX-06 al recibir LX-02.
+
+## 2026-10-11T20:05:08-05:00: CIERRE: LX-09 CI (sin PR todavía)
+- Humano responsable: Nicolay.
+- Herramienta/modelo IA: Claude (claude-opus-5-5).
+- Rama y commit: `architect-lancex` sobre `9ce4ef9`, sin commit.
+- Objetivo: GitHub Actions con ruff + check + pytest sobre PostgreSQL de servicio con SQL aplicado, y job de frontend.
+- Archivos/documentos modificados: nuevo `.github/workflows/ci.yml`; `backend/README.md` (formato de ruff en bloques de código).
+- Decisiones/supuestos: Python 3.12 en CI; `postgres:17` (ajustar a la versión mayor del proyecto Supabase). Si existen `supabase/migrations/*.sql` se aplican en orden (y `scripts/db/bootstrap_local.sql` si existe) y se activa `LANCEX_REQUIRE_DB=1`; sin SQL, las pruebas de BD se omiten con aviso. El job de frontend se activa solo cuando exista `frontend/package.json` (LX-07). El humano pidió "todo el backend": se detuvo en Fase 0 por la regla de AGENTS.md (no adelantar fases sin integrar la previa en `main`) y por la instrucción de esperar LX-02 para LX-06; se consulta al humano.
+- Pruebas ejecutadas y resultado real: YAML válido (2 jobs, 7 pasos backend); localmente con los mismos comandos: `ruff check` OK, `ruff format --check` detectó `README.md` y se corrigió, `manage.py check` sin errores, `pytest` 112 passed / 2 skipped. **No ejecutado en GitHub** (no hay push).
+- Riesgos/bloqueos: el workflow solo se validará de verdad al hacer push/PR; la protección de `main` (LX-10) la configura el humano en GitHub.
+- Handoff/siguiente paso: push y PR a `main` con LX-04/05/09/17; luego decidir alcance (ver pregunta al humano).
+
+## 2026-10-11T20:13:52-05:00: CIERRE: LX-11, LX-12, LX-17 (Fase 1 backend)
+- Humano responsable: Nicolay.
+- Herramienta/modelo IA: Claude (claude-opus-5-5).
+- Rama y commit: `feat/architect/LX-11-auth` (desde `architect-lancex` con LX-09), se publica en `backend-lancex` a pedido del humano.
+- Objetivo: backend de la Fase 1: autenticación, catálogo de publicaciones y cierre de LX-17.
+- Archivos/documentos modificados: `apps/core/authentication.py` (nuevo), `apps/core/models.py` (`ClockTimestamp`), `apps/audit/{models.py,services}`, `apps/accounts/{services,api}`, `apps/catalog/{models.py,services,api}`, `apps/auctions/services/listing_guard.py`, `config/{settings/base.py,api_v1.py}`, `tests/{accounts,catalog}`, `tests/security/endpoint_matrix.yaml`, `pyproject.toml`; `CONTRATO-API-INICIAL.md`, handoffs FE y BD, estado compartido.
+- Decisiones/supuestos:
+  - CSRF obligatorio también en peticiones anónimas mutables (login CSRF, T13).
+  - Bloqueo de login por hash del email (también inexistentes) → 429 `RATE_LIMITED`, sin revelar si la cuenta existe; cuenta suspendida con contraseña correcta → 403 `ACCOUNT_SUSPENDED`.
+  - Cambio de contraseña con step-up (`STEP_UP_FAILED`), mantiene la sesión actual con clave nueva y revoca las demás.
+  - Publicación no editable con subasta `draft|scheduled|active` (se siguió `ROLES-Y-PERMISOS.md` §4; el contrato decía "subasta publicada": **pendiente de confirmar** si `draft` debe bloquear). Código nuevo `LISTING_LOCKED`.
+  - `GET /listings/{id}/` solo para el dueño; los demás reciben 404 (IDOR, T05). Staff no tiene `listing.manage_own` → 403.
+  - Consulta a `auction` por SQL parametrizado hasta que LX-06 traiga el modelo.
+- Pruebas ejecutadas y resultado real: `manage.py check` sin errores; `ruff check` y `ruff format --check` limpios; `pytest`: **147 passed, 15 skipped** (las 15 son `django_db` y requieren PostgreSQL local con el SQL de LX-02, que aún no existe: **no ejecutadas**).
+- Riesgos/bloqueos: flujo real de registro/login/publicaciones no probado contra base; deriva posible hasta LX-02/LX-06; Fase 2+ no se inicia hasta integrar Fase 1 en `main` (AGENTS.md).
+- Handoff/siguiente paso: handoffs a FE y BD registrados. PR `backend-lancex` → `main`.
+
+## 2026-10-11T20:47:05-05:00: CIERRE: LX-05 verificación real en Firestore
+- Humano responsable: Nicolay.
+- Herramienta/modelo IA: Claude (claude-opus-5-5).
+- Rama y commit: `feat/architect/LX-11-auth`, sin cambios de código.
+- Objetivo: comprobar que un WARNING llega a Firestore sin datos sensibles.
+- Archivos/documentos modificados: ninguno versionado. Fuera del repo: credencial movida a `~/.lancex/firebase-sa.json` (sin abrirla); `backend/.env` creado (ignorado por Git) con proyecto `lancex-d82d4`, `DEV_NAME=nicolay`, `DJANGO_SECRET_KEY` aleatoria y `DATABASE_URL` provisional.
+- Decisiones/supuestos: el humano creó la base Firestore `(default)` en modo producción y publicó las reglas que niegan clientes.
+- Pruebas ejecutadas y resultado real: 1.º intento `emit_test_log` → `NotFound: The database (default) does not exist` (la app no falló: lote descartado, QA-04). 2.º intento tras crear la base → documento `request_id=32f350a9940441d2bf35bba13d56ab5e` leído de vuelta con el Admin SDK: contiene level, event, dev, env, request_id, path, error_code, ts y expire_at (+30 días); **no** contiene la contraseña, `max_amount` ni el correo de prueba (mensaje con `[REDACTED]`).
+- Riesgos/bloqueos: política TTL sobre `expire_at` pendiente de crear en la consola; `DATABASE_URL` real pendiente de BD.
+- Handoff/siguiente paso: los otros dos integrantes generan su propia clave con los mismos pasos. Esperar LX-02 para la Fase 2.
+
+## 2026-10-11T21:02:57-05:00: CIERRE: LX-02 y LX-03 (borrador para BD) + pruebas de esquema
+- Humano responsable: Nicolay.
+- Herramienta/modelo IA: Claude (claude-opus-5-5).
+- Rama y commit: `feat/architect/LX-11-auth` → `backend-lancex`.
+- Objetivo: desbloquear las pruebas de base de datos escribiendo la migración base y el Postgres local (a pedido del humano; la revisión y el `db push` siguen siendo del rol BD).
+- Archivos/documentos modificados: `supabase/migrations/20261011180000_baseline_lancex.sql`, `scripts/db/*`, `backend/tests/db/test_schema_guarantees.py`, `backend/tests/accounts/test_auth_api.py`, `backend/config/settings/test.py`, `backend/.env.example`, `.github/workflows/ci.yml`, ADR-0007, `decisiones/README.md`, `GESTION-DEL-ESQUEMA.md`, `MODELO-DE-DATOS-INICIAL.md`, handoff BD, estado compartido. Fuera de Git: `backend/.env` (`DATABASE_URL` con usuario `lancex_app.<ref>` y contraseña pendiente; `TEST_DATABASE_URL` como `lancex_app`).
+- Decisiones/supuestos: RLS con política solo para `lancex_app` (ADR-0007), porque sin política RLS bloquea a Django. El rol `lancex_app` se crea sin contraseña (se fija fuera de Git). Postgres 17 local y en CI (confirmar la versión del proyecto). Restricciones adicionales listadas en `MODELO-DE-DATOS-INICIAL.md`.
+- Pruebas ejecutadas y resultado real: `apply_local.sh` y `apply_local.ps1` aplican sin errores (20 tablas, RLS en 20); `LANCEX_REQUIRE_DB=1 pytest`: **182 passed** (incluye las antes omitidas de auth y catálogo, deriva modelo↔SQL, sin DDL para `lancex_app`, `audit_event` append-only, `bid` sin DELETE, matriz de mecanismos, sin grants a `anon`/`authenticated`). Un fallo intermedio era de la propia prueba (faltaba `format="json"`), corregido.
+- Riesgos/bloqueos: no aplicado en Supabase (lo hace BD); `supabase init` pendiente; contraseña de `lancex_app` pendiente.
+- Handoff/siguiente paso: handoff BD con los comandos exactos. Fase 2 tras integrar Fase 1 en `main`.
