@@ -1,0 +1,12 @@
+rules_version = '2';
+
+// LANCEX (ADR-0002): ningún cliente lee ni escribe Firestore.
+// Solo el backend escribe logs con el Admin SDK, que no pasa por estas reglas.
+// Publicar desde la consola de Firebase o con `firebase deploy --only firestore:rules`.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

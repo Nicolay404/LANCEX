@@ -11,7 +11,14 @@
 
 ## Handoffs activos
 
-Ninguno registrado todavía.
+- Fecha/hora: 2026-10-11T19:42:04-05:00
+- Issue/PR: LX-04 / LX-17 (rama `architect-lancex`, sin PR aún)
+- Para rol: Base de datos
+- Estado: listo para consumir
+- Contexto: el backend ya tiene modelos `managed = False` que la migración base (LX-02) debe satisfacer exactamente.
+- Archivos, tablas o endpoints afectados: `lancex.app_user` (id uuid, email, password, display_name, is_active, platform_role, status, status_reason, status_changed_at, status_changed_by uuid, last_login, created_at DEFAULT now()); `lancex.django_session` (session_key, session_data, expire_date, **user_id uuid NULL con índice**); `lancex.django_cache` (estructura de `createcachetable`); `lancex.organization` y `lancex.organization_membership` según `MODELO-DE-DATOS-INICIAL.md`.
+- Acción requerida: incluirlas en LX-02 con esos nombres de columna; `ALTER ROLE lancex_app SET search_path = lancex, public;`; en `scripts/db/apply_local` crear la base `lancex_test` en el puerto 54329 (lo espera `TEST_DATABASE_URL`).
+- Cómo validar: con el Postgres local preparado, `cd backend && LANCEX_REQUIRE_DB=1 python -m pytest` (hoy 2 pruebas de BD se omiten por falta de Postgres local); la prueba de deriva llegará con LX-06.
 
 ## Plantilla
 
