@@ -11,6 +11,15 @@
 
 ## Handoffs activos
 
+- Fecha/hora: 2026-10-11T20:13:52-05:00
+- Issue/PR: LX-11, LX-12 (rama `backend-lancex`)
+- Para rol: Base de datos / seguridad (LX-16, LX-18)
+- Estado: listo para consumir
+- Contexto: modelos nuevos `managed = False`: `AuditEvent` (`audit_event`, `occurred_at DEFAULT clock_timestamp()`), `Category` (`category`, id smallint identity), `Listing` (`listing`, `created_at`/`updated_at` con DEFAULT de PostgreSQL; el backend actualiza `updated_at = clock_timestamp()`).
+- Archivos, tablas o endpoints afectados: `audit_event`, `category`, `listing`; consulta `SELECT EXISTS(... FROM auction WHERE listing_id = %s AND status = ANY(...))` en `apps/auctions/services/listing_guard.py`.
+- Acción requerida: LX-02 con esas columnas y grants (`audit_event` solo INSERT/SELECT; `category` SELECT para `lancex_app` además de lo que use admin). LX-16/LX-18: las pruebas `django_db` de `tests/accounts` y `tests/catalog` ya cubren IDOR (404) y límites; completar la matriz por rol.
+- Cómo validar: `cd backend && LANCEX_REQUIRE_DB=1 python -m pytest` con el Postgres local preparado (hoy 15 pruebas de BD se omiten).
+
 - Fecha/hora: 2026-10-11T19:42:04-05:00
 - Issue/PR: LX-04 / LX-17 (rama `architect-lancex`, sin PR aún)
 - Para rol: Base de datos

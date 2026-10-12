@@ -42,18 +42,22 @@
 | 403 | `ACCOUNT_SUSPENDED` | Login correcto de una cuenta suspendida |
 | 403 | `STEP_UP_FAILED` | Contraseña de confirmación incorrecta en acción sensible |
 | 404 | `NOT_FOUND` | No existe o no es visible para el usuario |
+| 405 | `METHOD_NOT_ALLOWED` | Método HTTP no soportado por la ruta |
+| 406 | `NOT_ACCEPTABLE` | `Accept` distinto de JSON |
+| 415 | `UNSUPPORTED_MEDIA_TYPE` | Cuerpo que no es `application/json` |
 | 409 | `AUCTION_NOT_ACTIVE` | Fuera de la ventana de pujas |
 | 409 | `BID_BELOW_MINIMUM` | `details.minimum_allowed` |
 | 409 | `OFFER_ABOVE_MAXIMUM` | Inversa: `details.maximum_allowed` |
 | 409 | `ALREADY_LEADING` | El líder intenta superarse |
 | 409 | `PROXY_LIMIT_DECREASE_NOT_ALLOWED` | Intento de bajar el máximo |
 | 409 | `RULES_LOCKED` | Edición de reglas tras publicar |
+| 409 | `LISTING_LOCKED` | Edición de una publicación con subasta no terminal (`draft`, `scheduled`, `active`) |
 | 409 | `INVALID_STATE_TRANSITION` | Publicar/cancelar en estado no permitido |
 | 409 | `IDEMPOTENCY_CONFLICT` | Misma clave con distinto contenido |
 | 409 | `LIMIT_REACHED` | Límite de publicaciones, subastas abiertas o reportes |
 | 409 | `LAST_OWNER` / `LAST_ADMIN` | Se intenta dejar sin propietario a una organización o sin admin a la plataforma |
 | 409 | `EMAIL_ALREADY_REGISTERED` | Registro duplicado |
-| 429 | `RATE_LIMITED` | Throttling (`details.retry_after_s`) |
+| 429 | `RATE_LIMITED` | Throttling o login bloqueado 15 min tras 5 fallos por email (`details.retry_after_s`) |
 | 500 | `INTERNAL_ERROR` | Error no controlado (sin detalles internos) |
 
 Nunca se incluyen datos privados de otros usuarios en `details`.

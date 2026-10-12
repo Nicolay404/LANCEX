@@ -39,3 +39,18 @@ endpoints:
     methods:
       POST: {visitor: 401, user: 204, buyer_member: 204, supplier_member: 204, moderator: 204, admin: 204}
     notes: "Step-up. Contraseña actual incorrecta -> 403 STEP_UP_FAILED."
+
+  - route: /api/v1/categories/
+    methods:
+      GET: {visitor: 200, user: 200, buyer_member: 200, supplier_member: 200, moderator: 200, admin: 200}
+
+  - route: /api/v1/listings/
+    methods:
+      POST: {visitor: 401, user: 201, buyer_member: 201, supplier_member: 201, moderator: 403, admin: 403}
+    notes: "Staff no vende. Máximo 50 por usuario -> 409 LIMIT_REACHED."
+
+  - route: /api/v1/listings/{listing_id}/
+    methods:
+      GET: {visitor: 401, user: 404, buyer_member: 404, supplier_member: 404, moderator: 403, admin: 403}
+      PATCH: {visitor: 401, user: 404, buyer_member: 404, supplier_member: 404, moderator: 403, admin: 403}
+    notes: "Con una publicación ajena. El dueño recibe 200; con subasta abierta, PATCH -> 409 LISTING_LOCKED."

@@ -85,3 +85,20 @@
 - Pruebas ejecutadas y resultado real: YAML válido (2 jobs, 7 pasos backend); localmente con los mismos comandos: `ruff check` OK, `ruff format --check` detectó `README.md` y se corrigió, `manage.py check` sin errores, `pytest` 112 passed / 2 skipped. **No ejecutado en GitHub** (no hay push).
 - Riesgos/bloqueos: el workflow solo se validará de verdad al hacer push/PR; la protección de `main` (LX-10) la configura el humano en GitHub.
 - Handoff/siguiente paso: push y PR a `main` con LX-04/05/09/17; luego decidir alcance (ver pregunta al humano).
+
+## 2026-10-11T20:13:52-05:00: CIERRE: LX-11, LX-12, LX-17 (Fase 1 backend)
+- Humano responsable: Nicolay.
+- Herramienta/modelo IA: Claude (claude-opus-5-5).
+- Rama y commit: `feat/architect/LX-11-auth` (desde `architect-lancex` con LX-09), se publica en `backend-lancex` a pedido del humano.
+- Objetivo: backend de la Fase 1: autenticación, catálogo de publicaciones y cierre de LX-17.
+- Archivos/documentos modificados: `apps/core/authentication.py` (nuevo), `apps/core/models.py` (`ClockTimestamp`), `apps/audit/{models.py,services}`, `apps/accounts/{services,api}`, `apps/catalog/{models.py,services,api}`, `apps/auctions/services/listing_guard.py`, `config/{settings/base.py,api_v1.py}`, `tests/{accounts,catalog}`, `tests/security/endpoint_matrix.yaml`, `pyproject.toml`; `CONTRATO-API-INICIAL.md`, handoffs FE y BD, estado compartido.
+- Decisiones/supuestos:
+  - CSRF obligatorio también en peticiones anónimas mutables (login CSRF, T13).
+  - Bloqueo de login por hash del email (también inexistentes) → 429 `RATE_LIMITED`, sin revelar si la cuenta existe; cuenta suspendida con contraseña correcta → 403 `ACCOUNT_SUSPENDED`.
+  - Cambio de contraseña con step-up (`STEP_UP_FAILED`), mantiene la sesión actual con clave nueva y revoca las demás.
+  - Publicación no editable con subasta `draft|scheduled|active` (se siguió `ROLES-Y-PERMISOS.md` §4; el contrato decía "subasta publicada": **pendiente de confirmar** si `draft` debe bloquear). Código nuevo `LISTING_LOCKED`.
+  - `GET /listings/{id}/` solo para el dueño; los demás reciben 404 (IDOR, T05). Staff no tiene `listing.manage_own` → 403.
+  - Consulta a `auction` por SQL parametrizado hasta que LX-06 traiga el modelo.
+- Pruebas ejecutadas y resultado real: `manage.py check` sin errores; `ruff check` y `ruff format --check` limpios; `pytest`: **147 passed, 15 skipped** (las 15 son `django_db` y requieren PostgreSQL local con el SQL de LX-02, que aún no existe: **no ejecutadas**).
+- Riesgos/bloqueos: flujo real de registro/login/publicaciones no probado contra base; deriva posible hasta LX-02/LX-06; Fase 2+ no se inicia hasta integrar Fase 1 en `main` (AGENTS.md).
+- Handoff/siguiente paso: handoffs a FE y BD registrados. PR `backend-lancex` → `main`.
