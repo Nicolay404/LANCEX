@@ -78,8 +78,10 @@ from apps.core.capabilities import Cap
 from apps.core.permissions import ByMethod, HasCapability, Public
 from apps.core.serializers import StrictInputMixin
 
+
 class BidInput(StrictInputMixin, serializers.Serializer):
     amount = serializers.DecimalField(max_digits=12, decimal_places=2)
+
 
 class BidListView(APIView):
     permission_classes = [ByMethod(GET=Public, POST=HasCapability(Cap.BID_PLACE))]

@@ -74,3 +74,14 @@
   - Pruebas de BD pendientes hasta LX-02/LX-03 (Postgres local con SQL).
   - Firestore rules en `firebase/firestore.rules` aún no publicadas en el proyecto.
 - Handoff/siguiente paso: handoff a BD (columnas que exigen los modelos, `search_path`, base `lancex_test`). Siguiente: commit en `architect-lancex`, PR a `main`, después LX-11 (auth) y LX-06 al recibir LX-02.
+
+## 2026-10-11T20:05:08-05:00: CIERRE: LX-09 CI (sin PR todavía)
+- Humano responsable: Nicolay.
+- Herramienta/modelo IA: Claude (claude-opus-5-5).
+- Rama y commit: `architect-lancex` sobre `9ce4ef9`, sin commit.
+- Objetivo: GitHub Actions con ruff + check + pytest sobre PostgreSQL de servicio con SQL aplicado, y job de frontend.
+- Archivos/documentos modificados: nuevo `.github/workflows/ci.yml`; `backend/README.md` (formato de ruff en bloques de código).
+- Decisiones/supuestos: Python 3.12 en CI; `postgres:17` (ajustar a la versión mayor del proyecto Supabase). Si existen `supabase/migrations/*.sql` se aplican en orden (y `scripts/db/bootstrap_local.sql` si existe) y se activa `LANCEX_REQUIRE_DB=1`; sin SQL, las pruebas de BD se omiten con aviso. El job de frontend se activa solo cuando exista `frontend/package.json` (LX-07). El humano pidió "todo el backend": se detuvo en Fase 0 por la regla de AGENTS.md (no adelantar fases sin integrar la previa en `main`) y por la instrucción de esperar LX-02 para LX-06; se consulta al humano.
+- Pruebas ejecutadas y resultado real: YAML válido (2 jobs, 7 pasos backend); localmente con los mismos comandos: `ruff check` OK, `ruff format --check` detectó `README.md` y se corrigió, `manage.py check` sin errores, `pytest` 112 passed / 2 skipped. **No ejecutado en GitHub** (no hay push).
+- Riesgos/bloqueos: el workflow solo se validará de verdad al hacer push/PR; la protección de `main` (LX-10) la configura el humano en GitHub.
+- Handoff/siguiente paso: push y PR a `main` con LX-04/05/09/17; luego decidir alcance (ver pregunta al humano).
