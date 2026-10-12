@@ -1,0 +1,53 @@
+# Estado compartido de LANCEX
+
+**Responsable de integración:** rol de arquitectura. Cualquier integrante puede proponer cambios; se revisan con el equipo.
+
+## Estado actual
+
+- **Fase:** definición cerrada; siguiente paso Fase 0 de `PLAN-DE-DESARROLLO.md`.
+- Frontend: no inicializado (LX-07).
+- Backend: no inicializado (LX-04).
+- Esquema: diccionario cerrado en `MODELO-DE-DATOS-INICIAL.md`; migración SQL base pendiente (LX-02).
+- API: contrato v1 aprobado; OpenAPI se generará con drf-spectacular.
+- CI: pendiente (LX-09).
+- Proyecto Supabase y proyecto Firebase: pendientes de creación/invitación (LX-01, LX-05).
+
+## Decisiones vigentes
+
+1. Monolito modular Django; sin microservicios (ADR-0001).
+2. Logs técnicos en Firestore; auditoría en PostgreSQL; sin Firebase Analytics (ADR-0002).
+3. Esquema en SQL con Supabase CLI; **sin migraciones de Django**; modelos `managed = False`; rol `lancex_app` sin DDL (ADR-0003).
+4. Frontend y backend en local; una base Supabase compartida; hora de PostgreSQL; sesión de Django + CSRF vía proxy de Vite; polling con versión; imágenes en Supabase Storage (ADR-0004).
+5. Motor de subastas con Strategy por mecanismo, máquina de estados, `FOR UPDATE` por subasta y cierre perezoso idempotente (ADR-0005).
+6. Reglas de todas las modalidades aprobadas (`REGLAS-DE-SUBASTAS.md`).
+7. Roles `visitor`, `user`, `moderator`, `admin` + roles de organización; autorización por capacidades en el servidor; cada rol carga solo su interfaz (ADR-0006, `ROLES-Y-PERMISOS.md`).
+8. Ramas de rol se conservan; tareas en ramas cortas `feat/<rol>/LX-xx-tema`; integración frecuente a `main`.
+
+## Dependencias entre roles
+
+- Frontend puede empezar ya con el contrato y mocks; necesita backend real desde LX-11.
+- Backend necesita la migración base aplicada (LX-02) para las pruebas de integración; el dominio puro puede empezar antes.
+- BD no depende de nadie para LX-01 a LX-03.
+
+## Pendiente de decisión humana
+
+- Asignar nombres concretos a los roles ARQ, BD y FE.
+- Fechas de cada fase según el calendario de la materia.
+- Confirmar con el docente si exige algún entregable adicional (vistas 4+1, informe, video).
+
+## Riesgos abiertos
+
+| Riesgo | Mitigación |
+|---|---|
+| `search_path` vía pooler no aplica `OPTIONS` | `ALTER ROLE lancex_app SET search_path` en la migración base; verificar con `SHOW search_path` |
+| Cuota gratuita de Firestore | Solo `WARNING+` y eventos seleccionados; desactivado en pruebas |
+| Proyecto Supabase pausado antes de una demo | Ensayo el día previo; reanudar desde el dashboard |
+| Deriva modelos ↔ SQL | Prueba de deriva en CI |
+| Latencia a Supabase | `live/` liviano, índices, sin N+1 |
+
+## Registro de cambios compartidos
+
+Formato: `YYYY-MM-DDTHH:mm:ss-05:00`: decisión/avance, issue/PR, impacto en roles, siguiente acción.
+
+- `2026-10-11T13:16:54-05:00`: definición completa del proyecto (ADR-0001 a ADR-0005, reglas, modelo, contrato API, calidad, plan). Sin issue/PR aún (cambios en copia local de `main`). Impacto: todos los roles pueden iniciar Fase 0. Siguiente acción: revisar en equipo, subir en rama `docs/architect/definicion-completa` y abrir PR.
+- `2026-10-11T13:39:46-05:00`: roles y permisos, pantallas por rol, funcionamiento del sistema, modelo de amenazas y ADR-0006; reglas nuevas (cuentas, límites, reportes, conflictos de interés, relanzamiento); tablas `report`, `django_cache`, `job_heartbeat`; `platform_role` reemplaza a `is_staff`. Sin PR aún. Impacto: todos los roles (nuevas tareas LX-17 a LX-19, LX-37, LX-38, LX-77 a LX-80). Siguiente acción: revisión en equipo.
