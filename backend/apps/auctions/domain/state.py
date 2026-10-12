@@ -1,0 +1,125 @@
+"""Estado de una subasta y máquina de estados con estado efectivo (ADR-0005, decisión 2). Python puro.
+
+El estado persistido solo cambia por acciones (publicar, cancelar, cerrar). `scheduled → active`
+y `active → closed` no esperan a ningún job: se calculan con la hora de PostgreSQL en cada lectura.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field, replace
+from datetime import datetime, timedelta
+from decimal import Decimal
+from enum import StrEnum
+
+
+class Status(StrEnum):
+    DRAFT = "draft"
+    SCHEDULED = "scheduled"
+    ACTIVE = "active"
+    CLOSED = "closed"
+    CANCELLED = "cancelled"
+
+
+class Outcome(StrEnum):
+    AWARDED = "awarded"
+    UNSOLD = "unsold"
+
+
+TERMINAL = frozenset({Status.CLOSED, Status.CANCELLED})
+OPEN = frozenset({Status.DRAFT, Status.SCHEDULED, Status.ACTIVE})
+
+MIN_DURATION = timedelta(minutes=2)  # REGLAS §1 (demos)
+MAX_DURATION = timedelta(days=30)
+
+
+@dataclass(frozen=True, slots=True)
+class AuctionConfig:
+    """Parámetros de reglas que se congelan al publicar (`rules_snapshot`)."""
+
+    mechanism: str
+    closing_policy: str
+    proxy_enabled: bool = False
+    starting_price: Decimal | None = None
+    min_increment: Decimal | None = None
+    reserve_price: Decimal | None = None
+    starts_at: datetime | None = None
+    ends_at: datetime | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class AuctionState:
+    """Instantánea de la subasta que necesitan las políticas (sin ORM)."""
+
+    id: str
+    owner_user_id: str
+    status: str
+    config: AuctionConfig
+    current_price: Decimal | None = None
+    leader_user_id: str | None = None
+    bid_count: int = 0
+    extra: dict = field(default_factory=dict)
+
+    @property
+    def starts_at(self) -> datetime | None:
+        return self.config.starts_at
+
+    @property
+    def ends_at(self) -> datetime | None:
+        return self.config.ends_at
+
+    def with_changes(self, **changes) -> AuctionState:
+        return replace(self, **changes)
+
+
+@dataclass(frozen=True, slots=True)
+class BidIntent:
+    bidder_user_id: str
+    amount: Decimal
+
+
+@dataclass(frozen=True, slots=True)
+class NewBid:
+    """Puja a insertar en el libro (`bid`). `seq` lo asigna el servicio."""
+
+    bidder_user_id: str
+    amount: Decimal
+    source: str = "manual"
+
+
+@dataclass(frozen=True, slots=True)
+class BidOutcome:
+    bids: tuple[NewBid, ...]
+    current_price: Decimal
+    leader_user_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class BidRecord:
+    seq: int
+    bidder_user_id: str
+    amount: Decimal
+    counted: bool = True
+
+
+@dataclass(frozen=True, slots=True)
+class Result:
+    outcome: str
+    winner_user_id: str | None = None
+    final_price: Decimal | None = None
+
+
+def effective_status(state: AuctionState, effective_end: datetime | None, now: datetime) -> str:
+    """Estado visible según la hora de PostgreSQL (ADR-0005)."""
+    if state.status in (Status.DRAFT, Status.CANCELLED, Status.CLOSED):
+        return state.status
+    if state.starts_at is None or effective_end is None:
+        return state.status
+    if now < state.starts_at:
+        return Status.SCHEDULED
+    if now < effective_end:
+        return Status.ACTIVE
+    return Status.CLOSED  # aunque el cierre aún no se haya materializado
+
+
+def is_result_pending(state: AuctionState, effective: str) -> bool:
+    return effective == Status.CLOSED and state.status != Status.CLOSED
