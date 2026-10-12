@@ -1,19 +1,11 @@
-"""Consultas de subastas que otras apps necesitan sin conocer el modelo `Auction`.
+"""Consultas de subastas que otras apps necesitan (catálogo) sin depender de la capa api."""
 
-Hasta LX-06 (modelo `Auction` managed = False) se usa SQL parametrizado sobre `lancex.auction`.
-Al llegar el modelo, se reemplaza por el ORM sin cambiar la firma.
-"""
-
-from django.db import connection
+from apps.auctions.domain.state import OPEN
+from apps.auctions.models import Auction
 
 # Estados persistidos no terminales (ROLES-Y-PERMISOS.md §4, REGLAS §9).
-OPEN_AUCTION_STATUSES = ("draft", "scheduled", "active")
+OPEN_AUCTION_STATUSES = tuple(sorted(OPEN))
 
 
 def listing_has_open_auction(listing_id) -> bool:
-    with connection.cursor() as cursor:
-        cursor.execute(
-            "SELECT EXISTS (SELECT 1 FROM auction WHERE listing_id = %s AND status = ANY(%s))",
-            [listing_id, list(OPEN_AUCTION_STATUSES)],
-        )
-        return bool(cursor.fetchone()[0])
+    return Auction.objects.filter(listing_id=listing_id, status__in=OPEN_AUCTION_STATUSES).exists()

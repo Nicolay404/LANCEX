@@ -9,6 +9,15 @@
 
 ## Handoffs activos
 
+- Fecha/hora: 2026-10-11T21:48:54-05:00
+- Issue/PR: LX-20..LX-24 (Fase 2, ascendente con cierre fijo; rama `backend-lancex`)
+- Para rol: Frontend (LX-27, LX-28, LX-29)
+- Estado: listo para consumir
+- Contexto: subastas ascendentes con cierre fijo de punta a punta: crear borrador, editar, publicar, cancelar, pujar, cierre, resultado.
+- Archivos, tablas o endpoints afectados: `GET|POST /auctions/`, `GET|PATCH /auctions/{id}/`, `POST /auctions/{id}/publish/`, `POST /auctions/{id}/cancel/`, `GET /auctions/{id}/live/`, `GET|POST /auctions/{id}/bids/`, `GET /auctions/{id}/result/`.
+- Acción requerida: importes siempre como string (`"105.00"`); `POST /bids/` exige cabecera `Idempotency-Key` (UUID v4 nuevo por intento lógico; reintentar con la misma clave). Cuenta regresiva con `server_time`, nunca con el reloj local. Polling de `live/` con `If-None-Match` (ETag) -> `304`. `soft_close`, `candle`, `proxy_enabled=true`, `sealed` y `reverse` responden `400 VALIDATION_ERROR` "todavía no disponible" hasta su fase. Nuevo código `LISTING_HAS_OPEN_AUCTION` (409). `images` vacío hasta LX-70; `viewer.my_proxy_max` null hasta Fase 3.
+- Cómo validar: `GET /api/v1/schema/` (local) y `tests/auctions/test_auction_flow.py` como ejemplos de uso.
+
 - Fecha/hora: 2026-10-11T20:13:52-05:00
 - Issue/PR: LX-11, LX-12 (rama `feat/architect/LX-11-auth` → `backend-lancex`)
 - Para rol: Frontend

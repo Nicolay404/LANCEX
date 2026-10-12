@@ -54,3 +54,41 @@ endpoints:
       GET: {visitor: 401, user: 404, buyer_member: 404, supplier_member: 404, moderator: 403, admin: 403}
       PATCH: {visitor: 401, user: 404, buyer_member: 404, supplier_member: 404, moderator: 403, admin: 403}
     notes: "Con una publicación ajena. El dueño recibe 200; con subasta abierta, PATCH -> 409 LISTING_LOCKED."
+
+  - route: /api/v1/auctions/
+    methods:
+      GET: {visitor: 200, user: 200, buyer_member: 200, supplier_member: 200, moderator: 200, admin: 200}
+      POST: {visitor: 401, user: 201, buyer_member: 201, supplier_member: 201, moderator: 403, admin: 403}
+    notes: "POST con publicación propia; staff no vende. mine=owner|participating|watching exige sesión."
+
+  - route: /api/v1/auctions/{auction_id}/
+    methods:
+      GET: {visitor: 200, user: 200, buyer_member: 200, supplier_member: 200, moderator: 200, admin: 200}
+      PATCH: {visitor: 401, user: 403, buyer_member: 403, supplier_member: 403, moderator: 403, admin: 403}
+    notes: "GET de subasta publicada. Borrador ajeno -> 404. PATCH de subasta ajena -> 403 (visible) o 404 (borrador); dueño -> 200."
+
+  - route: /api/v1/auctions/{auction_id}/publish/
+    methods:
+      POST: {visitor: 401, user: 403, buyer_member: 403, supplier_member: 403, moderator: 403, admin: 403}
+    notes: "Con subasta ajena publicada. Dueño en draft -> 200."
+
+  - route: /api/v1/auctions/{auction_id}/cancel/
+    methods:
+      POST: {visitor: 401, user: 403, buyer_member: 403, supplier_member: 403, moderator: 403, admin: 403}
+    notes: "Con subasta ajena. Moderación usa /moderation/auctions/{id}/cancel/ (LX-77)."
+
+  - route: /api/v1/auctions/{auction_id}/live/
+    methods:
+      GET: {visitor: 200, user: 200, buyer_member: 200, supplier_member: 200, moderator: 200, admin: 200}
+    notes: "304 con If-None-Match igual al ETag."
+
+  - route: /api/v1/auctions/{auction_id}/bids/
+    methods:
+      GET: {visitor: 200, user: 200, buyer_member: 200, supplier_member: 200, moderator: 200, admin: 200}
+      POST: {visitor: 401, user: 201, buyer_member: 201, supplier_member: 201, moderator: 403, admin: 403}
+    notes: "POST en subasta activa ajena con Idempotency-Key; reintento -> 200; dueño -> 403 BID_ON_OWN_AUCTION."
+
+  - route: /api/v1/auctions/{auction_id}/result/
+    methods:
+      GET: {visitor: 200, user: 200, buyer_member: 200, supplier_member: 200, moderator: 200, admin: 200}
+    notes: "Materializa el cierre si está pendiente."

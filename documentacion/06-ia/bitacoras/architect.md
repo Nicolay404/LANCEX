@@ -124,3 +124,21 @@
 - Pruebas ejecutadas y resultado real: `apply_local.sh` y `apply_local.ps1` aplican sin errores (20 tablas, RLS en 20); `LANCEX_REQUIRE_DB=1 pytest`: **182 passed** (incluye las antes omitidas de auth y catálogo, deriva modelo↔SQL, sin DDL para `lancex_app`, `audit_event` append-only, `bid` sin DELETE, matriz de mecanismos, sin grants a `anon`/`authenticated`). Un fallo intermedio era de la propia prueba (faltaba `format="json"`), corregido.
 - Riesgos/bloqueos: no aplicado en Supabase (lo hace BD); `supabase init` pendiente; contraseña de `lancex_app` pendiente.
 - Handoff/siguiente paso: handoff BD con los comandos exactos. Fase 2 tras integrar Fase 1 en `main`.
+
+## 2026-10-11T21:48:54-05:00: CIERRE: Fase 2 backend (LX-20 a LX-24)
+- Humano responsable: Nicolay.
+- Herramienta/modelo IA: Claude (claude-opus-5-5).
+- Rama y commit: `feat/architect/LX-20-ascending` (desde `main` con la Fase 1) → `backend-lancex`.
+- Objetivo: núcleo ascendente con cierre fijo según ADR-0005 y REGLAS §1, §2, §9, §10.
+- Archivos/documentos modificados: `apps/auctions/domain/{money,errors,state,registry}.py`, `domain/mechanisms/{base,ascending}.py`, `domain/closing/fixed.py`; `apps/auctions/models.py` (`Auction`, `Bid`, `JobHeartbeat`); `apps/auctions/services/{snapshot,lifecycle,bidding,closing,queries,listing_guard}.py`; `apps/auctions/api/{presenters,serializers,views,urls}.py`; comando `close_due_auctions`; `config/api_v1.py`; `tests/auctions/*`; `endpoint_matrix.yaml`; contrato (`LISTING_HAS_OPEN_AUCTION`); handoffs FE y BD; estado compartido. Además, guía y script `push_supabase.ps1` para que BD aplique la migración (rama `docs/db/aplicar-migraciones`).
+- Decisiones/supuestos:
+  - Solo `ascending` + `fixed` en esta fase; las demás combinaciones válidas responden "todavía no disponible" (registro de Strategy listo para enchufarlas).
+  - `TimeSource.db_now()` = `clock_timestamp()` tras el `FOR UPDATE`; el ETag de `live/` incluye versión, estado efectivo y si el espectador lidera (el estado cambia con el reloj sin tocar `version`).
+  - `rules_snapshot` no copia el importe de la reserva (solo `has_reserve`).
+  - Al cerrar con `awarded`, `settlement_status = pending`.
+  - `ending_soon` = activas que terminan en la próxima hora (supuesto, no estaba definido).
+  - Moderadores/admin ven identidades en el historial (`moderation.view_auction_internals`); el dueño, solo tras el cierre.
+  - `GET /result/` de una subasta aún abierta responde 200 con `outcome: null` (el contrato no lo definía).
+- Pruebas ejecutadas y resultado real: `ruff` limpio; `manage.py check` sin errores; `LANCEX_REQUIRE_DB=1 pytest`: **282 passed** (dominio, flujo, no fuga de `reserve_price` en detalle/live/bids/result/catálogo, seudónimos, ETag 304, QA-01 20 pujas paralelas, QA-08 idempotencia paralela, 3 cierres simultáneos → un solo `auction_closed`). `close_due_auctions` contra la base local: "Subastas cerradas: 0" y heartbeat `nicolay`.
+- Riesgos/bloqueos: Supabase aún sin la migración (BD); sin pruebas de carga (QA-05, Fase 7).
+- Handoff/siguiente paso: FE (LX-27..29) y BD (LX-25/26). Fase 3 tras integrar la Fase 2 en `main`.

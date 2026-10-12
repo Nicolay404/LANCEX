@@ -11,6 +11,15 @@
 
 ## Handoffs activos
 
+- Fecha/hora: 2026-10-11T21:48:54-05:00
+- Issue/PR: LX-25 (concurrencia) y LX-26 (recálculo) — base hecha por ARQ en LX-22/LX-23
+- Para rol: Base de datos
+- Estado: listo para consumir
+- Contexto: `tests/auctions/test_concurrency.py` ya cubre QA-01 (20 pujas paralelas), QA-08 (misma `Idempotency-Key` en paralelo) y 3 cierres simultáneos; pasan contra Postgres 17 local como `lancex_app`.
+- Archivos, tablas o endpoints afectados: `auction`, `bid`, `audit_event`, `job_heartbeat`.
+- Acción requerida: LX-25: ampliar (más hilos, pujas + cierre al mismo tiempo, reintentos tras timeout). LX-26: script que recalcule el resultado desde `bid` y lo compare con `auction` (QA-07).
+- Cómo validar: `LANCEX_REQUIRE_DB=1 python -m pytest tests/auctions -q`.
+
 - Fecha/hora: 2026-10-11T21:02:57-05:00
 - Issue/PR: LX-02, LX-03 (borrador hecho por ARQ a pedido del humano; rama `backend-lancex`)
 - Para rol: Base de datos

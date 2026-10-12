@@ -52,6 +52,7 @@
 | 409 | `PROXY_LIMIT_DECREASE_NOT_ALLOWED` | Intento de bajar el máximo |
 | 409 | `RULES_LOCKED` | Edición de reglas tras publicar |
 | 409 | `LISTING_LOCKED` | Edición de una publicación con subasta no terminal (`draft`, `scheduled`, `active`) |
+| 409 | `LISTING_HAS_OPEN_AUCTION` | La publicación ya tiene una subasta `draft`, `scheduled` o `active` |
 | 409 | `INVALID_STATE_TRANSITION` | Publicar/cancelar en estado no permitido |
 | 409 | `IDEMPOTENCY_CONFLICT` | Misma clave con distinto contenido |
 | 409 | `LIMIT_REACHED` | Límite de publicaciones, subastas abiertas o reportes |
