@@ -20,10 +20,14 @@ def config_of(a: Auction) -> AuctionConfig:
         reserve_price=a.reserve_price,
         starts_at=a.starts_at,
         ends_at=a.ends_at,
+        original_ends_at=a.original_ends_at,
+        soft_close_window_s=a.soft_close_window_s,
+        soft_close_extension_s=a.soft_close_extension_s,
+        soft_close_max_total_s=a.soft_close_max_total_s,
     )
 
 
-def to_state(a: Auction) -> AuctionState:
+def to_state(a: Auction, *, leader_proxy_max=None) -> AuctionState:
     return AuctionState(
         id=str(a.pk),
         owner_user_id=str(a.owner_user_id),
@@ -32,6 +36,7 @@ def to_state(a: Auction) -> AuctionState:
         current_price=a.current_price,
         leader_user_id=str(a.leader_user_id) if a.leader_user_id else None,
         bid_count=a.bid_count,
+        leader_proxy_max=leader_proxy_max,
     )
 
 
@@ -43,8 +48,8 @@ class Effective:
     effective_end: datetime | None
 
 
-def evaluate(a: Auction, now: datetime) -> Effective:
-    state = to_state(a)
+def evaluate(a: Auction, now: datetime, *, leader_proxy_max=None) -> Effective:
+    state = to_state(a, leader_proxy_max=leader_proxy_max)
     if a.mechanism in registry.MECHANISMS and a.closing_policy in registry.CLOSING_POLICIES:
         end = registry.closing_policy_for(state).effective_end(state)
     else:  # modalidad de una fase posterior: se trata como cierre fijo

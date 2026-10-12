@@ -65,6 +65,7 @@ backend/
 │   ├── accounts/             # User y UserSession (managed=False), SessionStore revocable, principal
 │   ├── organizations/        # Organization, OrganizationMembership (managed=False)
 │   ├── catalog/  auctions/{domain,services,api}  audit/  notifications/
+│   ├── moderation/           # reportes (LX-37) y, en Fase 7, herramientas de moderación (LX-77)
 └── tests/
     ├── architecture/         # reglas de las ADR como pruebas
     ├── core/  accounts/

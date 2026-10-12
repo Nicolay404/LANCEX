@@ -142,3 +142,20 @@
 - Pruebas ejecutadas y resultado real: `ruff` limpio; `manage.py check` sin errores; `LANCEX_REQUIRE_DB=1 pytest`: **282 passed** (dominio, flujo, no fuga de `reserve_price` en detalle/live/bids/result/catálogo, seudónimos, ETag 304, QA-01 20 pujas paralelas, QA-08 idempotencia paralela, 3 cierres simultáneos → un solo `auction_closed`). `close_due_auctions` contra la base local: "Subastas cerradas: 0" y heartbeat `nicolay`.
 - Riesgos/bloqueos: Supabase aún sin la migración (BD); sin pruebas de carga (QA-05, Fase 7).
 - Handoff/siguiente paso: FE (LX-27..29) y BD (LX-25/26). Fase 3 tras integrar la Fase 2 en `main`.
+
+## 2026-10-11T22:27:02-05:00: CIERRE: Fase 3 backend (LX-31, LX-32, LX-33, LX-37)
+- Humano responsable: Nicolay.
+- Herramienta/modelo IA: Claude (claude-opus-5-5).
+- Rama y commit: `feat/architect/fase-3` (desde `main` con la Fase 2) → `backend-lancex`.
+- Objetivo: proxy bidding, soft close, notificaciones/seguimiento y reportes.
+- Archivos/documentos modificados: dominio `proxy.py`, `closing/soft_close.py`, `state.py`, `registry.py`, `mechanisms/ascending.py`; modelos `ProxyBidLimit`, `Notification`, `Watchlist`, `Report` (nueva app `apps/moderation`, en `INSTALLED_APPS`); servicios `bidding.py` (motor común manual/proxy), `closing.py` (notificaciones + `notify_watchers`), `lifecycle.py` (soft close + aviso de cancelación), `snapshot.py`; `notifications/services`, `moderation/services`; vistas `proxy-limit`, `watch`, `notifications`, `reports`; pruebas `test_domain_proxy_soft_close.py`, `test_phase3_flow.py`; matriz de endpoints; contrato; REGLAS §2; README del backend; handoffs FE y BD; estado compartido.
+- Decisiones/supuestos:
+  - Ganador ascendente = última puja válida (mayor importe, empate -> seq mayor) para que el empate de proxy `Cc = M_L` lo gane el líder, como dice §3; antes la prueba asumía seq menor. Documentado en REGLAS §2.
+  - El líder que sube su techo no genera pujas ni cambia `version`. La auditoría de límites (`proxy_limit_set/raised`) no incluye el importe.
+  - Proxy y puja manual comparten un único motor transaccional; el soft close se evalúa una vez por operación con la hora de PostgreSQL.
+  - Notificaciones con lista blanca de claves en `data` (nunca máximos). Los avisos del job (`watch_auction_started/ending`) se insertan con `NOT EXISTS`; en una carrera exacta entre backends podría duplicarse un aviso informativo (aceptado).
+  - Reportes: listing reportable solo si tiene alguna subasta publicada; 404 si no; staff no usa `/reports/`. Código nuevo `ALREADY_REPORTED`; `PROXY_NOT_ENABLED` para proxy en subasta sin proxy.
+  - Nueva app `moderation` (ADR-0005 no la listaba): agrupa reportes y la futura moderación (LX-77).
+- Pruebas ejecutadas y resultado real: `ruff check` y `format --check` limpios; `manage.py check` sin errores; `LANCEX_REQUIRE_DB=1 pytest`: **329 passed** (casos obligatorios de §3, soft close con tope, no fuga del máximo proxy en detalle/live/bids/result/proxy-limit ajeno/auditoría/notificaciones, notificaciones outbid/won/lost/owner/cancelled/watch, reportes con límites, 8 proxies en paralelo con un solo límite vivo).
+- Riesgos/bloqueos: Supabase aún sin migración aplicada (BD). `watch_auction_ending` depende de que alguien ejecute `close_due_auctions --loop`.
+- Handoff/siguiente paso: FE (LX-35, LX-38) y BD (LX-34). Fase 4 tras integrar la Fase 3 en `main`.

@@ -12,15 +12,17 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from datetime import timedelta
 
 from django.conf import settings
-from django.db import transaction
+from django.db import connection, transaction
 
 from apps.auctions.domain import registry
 from apps.auctions.domain.state import BidRecord, Status
 from apps.auctions.models import Auction, Bid, JobHeartbeat
 from apps.audit.services import record
 from apps.core.time import time_source
+from apps.notifications import services as notifications
 
 from .snapshot import evaluate
 
@@ -91,11 +93,25 @@ def close_auction(auction_id, *, skip_locked: bool = False) -> CloseResult:
                 "bid_count": auction.bid_count,
             },
         )
+        _notify_closed(auction, records)
         auction_pk = str(auction.pk)
         transaction.on_commit(
             lambda: logger.info("Subasta cerrada", extra={"event": "auction_closed", "auction_id": auction_pk})
         )
     return CloseResult(closed=True, auction=auction)
+
+
+def _notify_closed(auction: Auction, records: list[BidRecord]) -> None:
+    """REGLAS §11: ganador, perdedores y dueño, en la misma transacción del cierre."""
+    winner = str(auction.winner_user_id) if auction.winner_user_id else None
+    final = None if auction.final_price is None else f"{auction.final_price:.2f}"
+    data = {"outcome": auction.outcome, "final_price": final}
+    bidders = {r.bidder_user_id for r in records}
+    if winner:
+        notifications.notify([winner], "auction_won", auction_id=auction.pk, data=data)
+    notifications.notify(bidders - {winner}, "auction_lost", auction_id=auction.pk, data=data)
+    owner_type = "auction_closed_owner" if auction.outcome == "awarded" else "auction_unsold_owner"
+    notifications.notify([auction.owner_user_id], owner_type, auction_id=auction.pk, data=data)
 
 
 def due_auction_ids(limit: int = BATCH_SIZE) -> list:
@@ -110,8 +126,44 @@ def due_auction_ids(limit: int = BATCH_SIZE) -> list:
 
 def close_due_auctions(limit: int = BATCH_SIZE) -> int:
     closed = sum(close_auction(auction_id, skip_locked=True).closed for auction_id in due_auction_ids(limit))
+    notify_watchers()
     _heartbeat(closed)
     return closed
+
+
+WATCH_ENDING_BEFORE = timedelta(minutes=10)  # REGLAS §11: solo subastas `fixed`
+
+
+def notify_watchers() -> int:
+    """`watch_auction_started` y `watch_auction_ending`, una sola vez por seguidor y subasta.
+
+    El `INSERT ... WHERE NOT EXISTS` es atómico por fila: si los tres backends corren el job a la vez,
+    alguna notificación podría duplicarse en una carrera exacta; es un aviso informativo, no un resultado.
+    """
+    now = time_source.db_now()
+    sent = 0
+    with connection.cursor() as cursor:
+        for notification_type, condition, params in (
+            ("watch_auction_started", "a.starts_at <= %s AND a.ends_at > %s", [now, now]),
+            (
+                "watch_auction_ending",
+                "a.closing_policy = 'fixed' AND a.ends_at > %s AND a.ends_at <= %s",
+                [now, now + WATCH_ENDING_BEFORE],
+            ),
+        ):
+            cursor.execute(
+                f"""
+                INSERT INTO notification (user_id, type, auction_id, data)
+                SELECT w.user_id, %s, a.id, '{{}}'::jsonb
+                  FROM watchlist w JOIN auction a ON a.id = w.auction_id
+                 WHERE a.status IN ('scheduled', 'active') AND {condition}
+                   AND NOT EXISTS (SELECT 1 FROM notification n
+                                    WHERE n.user_id = w.user_id AND n.auction_id = a.id AND n.type = %s)
+                """,  # noqa: S608 - condition es un literal de esta función; los valores van parametrizados
+                [notification_type, *params, notification_type],
+            )
+            sent += cursor.rowcount
+    return sent
 
 
 def _heartbeat(closed: int) -> None:

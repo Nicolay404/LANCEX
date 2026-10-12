@@ -92,3 +92,30 @@ endpoints:
     methods:
       GET: {visitor: 200, user: 200, buyer_member: 200, supplier_member: 200, moderator: 200, admin: 200}
     notes: "Materializa el cierre si está pendiente."
+
+  - route: /api/v1/auctions/{auction_id}/proxy-limit/
+    methods:
+      GET: {visitor: 401, user: 200, buyer_member: 200, supplier_member: 200, moderator: 403, admin: 403}
+      PUT: {visitor: 401, user: 200, buyer_member: 200, supplier_member: 200, moderator: 403, admin: 403}
+    notes: "Solo el máximo propio. PUT en subasta activa ajena con proxy_enabled; sin proxy -> 409 PROXY_NOT_ENABLED."
+
+  - route: /api/v1/auctions/{auction_id}/watch/
+    methods:
+      PUT: {visitor: 401, user: 204, buyer_member: 204, supplier_member: 204, moderator: 403, admin: 403}
+      DELETE: {visitor: 401, user: 204, buyer_member: 204, supplier_member: 204, moderator: 403, admin: 403}
+    notes: "Idempotente. Borrador ajeno -> 404."
+
+  - route: /api/v1/notifications/
+    methods:
+      GET: {visitor: 401, user: 200, buyer_member: 200, supplier_member: 200, moderator: 200, admin: 200}
+    notes: "Solo las propias."
+
+  - route: /api/v1/notifications/read/
+    methods:
+      POST: {visitor: 401, user: 200, buyer_member: 200, supplier_member: 200, moderator: 200, admin: 200}
+    notes: "ids ajenos se ignoran."
+
+  - route: /api/v1/reports/
+    methods:
+      POST: {visitor: 401, user: 201, buyer_member: 201, supplier_member: 201, moderator: 403, admin: 403}
+    notes: "10 por día (LIMIT_REACHED) y uno por objeto (ALREADY_REPORTED)."

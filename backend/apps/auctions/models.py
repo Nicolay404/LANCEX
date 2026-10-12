@@ -117,6 +117,27 @@ class Bid(models.Model):
         return f"{self.auction_id}#{self.seq}"
 
 
+class ProxyBidLimit(models.Model):
+    """PRIVADO: máximo proxy de un usuario. Nunca se serializa salvo para su propio dueño."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    auction = models.ForeignKey(Auction, on_delete=models.DO_NOTHING, db_column="auction_id", related_name="+")
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING, db_column="user_id", related_name="+"
+    )
+    max_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    status = models.CharField(max_length=20, default="active")
+    created_at = models.DateTimeField(db_default=ClockTimestamp())
+    updated_at = models.DateTimeField(db_default=ClockTimestamp())
+
+    class Meta:
+        managed = False
+        db_table = "proxy_bid_limit"
+
+    def __str__(self) -> str:
+        return f"proxy:{self.auction_id}:{self.user_id}:{self.status}"
+
+
 class JobHeartbeat(models.Model):
     """Último ciclo de `close_due_auctions` por laptop (`DEV_NAME`); alimenta la salud del admin."""
 

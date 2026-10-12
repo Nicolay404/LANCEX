@@ -11,6 +11,15 @@
 
 ## Handoffs activos
 
+- Fecha/hora: 2026-10-11T22:27:02-05:00
+- Issue/PR: LX-34 (invariante proxy bajo concurrencia)
+- Para rol: Base de datos
+- Estado: listo para consumir
+- Contexto: `test_parallel_proxies_keep_a_single_live_limit` (8 máximos simultáneos) ya verifica "como máximo un límite vivo, el del líder". Modelos nuevos `managed = False`: `ProxyBidLimit`, `Notification`, `Watchlist` (PK compuesta), `Report`; la prueba de deriva los cubre.
+- Archivos, tablas o endpoints afectados: `proxy_bid_limit`, `notification`, `watchlist`, `report`; el job escribe `notification` con `INSERT ... WHERE NOT EXISTS`.
+- Acción requerida: ampliar LX-34 (proxy + manual + cierre simultáneos). Sin cambios de esquema.
+- Cómo validar: `LANCEX_REQUIRE_DB=1 python -m pytest tests/auctions -q`.
+
 - Fecha/hora: 2026-10-11T21:48:54-05:00
 - Issue/PR: LX-25 (concurrencia) y LX-26 (recálculo) — base hecha por ARQ en LX-22/LX-23
 - Para rol: Base de datos
