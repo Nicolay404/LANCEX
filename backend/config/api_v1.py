@@ -6,11 +6,13 @@ Cada app expone sus rutas en `apps/<app>/api/urls.py` y se registra aquí. Toda 
 """
 
 from django.conf import settings
-from django.urls import path
+from django.urls import include, path
 
 from apps.core.views import SchemaView
 
-urlpatterns: list = []
+urlpatterns: list = [
+    path("", include("apps.accounts.api.urls")),
+]
 
 if settings.LANCEX_SERVE_SCHEMA:
     urlpatterns.append(path("schema/", SchemaView.as_view(), name="api-schema"))
