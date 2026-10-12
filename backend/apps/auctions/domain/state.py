@@ -44,6 +44,10 @@ class AuctionConfig:
     reserve_price: Decimal | None = None
     starts_at: datetime | None = None
     ends_at: datetime | None = None
+    original_ends_at: datetime | None = None  # fijado al publicar; límite del soft close
+    soft_close_window_s: int | None = None
+    soft_close_extension_s: int | None = None
+    soft_close_max_total_s: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,6 +61,8 @@ class AuctionState:
     current_price: Decimal | None = None
     leader_user_id: str | None = None
     bid_count: int = 0
+    # Máximo proxy vivo del líder (PRIVADO: solo lo usa el dominio dentro de la transacción).
+    leader_proxy_max: Decimal | None = None
     extra: dict = field(default_factory=dict)
 
     @property
@@ -70,11 +76,17 @@ class AuctionState:
     def with_changes(self, **changes) -> AuctionState:
         return replace(self, **changes)
 
+    def with_ends_at(self, ends_at: datetime) -> AuctionState:
+        return replace(self, config=replace(self.config, ends_at=ends_at))
+
 
 @dataclass(frozen=True, slots=True)
 class BidIntent:
+    """Retador: puja manual de `amount`, o límite proxy nuevo/subido (`is_proxy`, `amount` = máximo)."""
+
     bidder_user_id: str
     amount: Decimal
+    is_proxy: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,6 +103,8 @@ class BidOutcome:
     bids: tuple[NewBid, ...]
     current_price: Decimal
     leader_user_id: str
+    # Usuarios cuyo límite proxy queda agotado tras esta operación.
+    exhausted_proxy_user_ids: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

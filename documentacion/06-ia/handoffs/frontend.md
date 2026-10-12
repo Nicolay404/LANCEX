@@ -9,6 +9,15 @@
 
 ## Handoffs activos
 
+- Fecha/hora: 2026-10-11T22:27:02-05:00
+- Issue/PR: LX-31, LX-32, LX-33, LX-37 (Fase 3; rama `backend-lancex`)
+- Para rol: Frontend (LX-35, LX-38)
+- Estado: listo para consumir
+- Contexto: proxy bidding, soft close, notificaciones, seguimiento y reportes.
+- Archivos, tablas o endpoints afectados: `GET|PUT /auctions/{id}/proxy-limit/` (`{max_amount}`; respuesta con `bid` —null si el líder solo sube su techo—, `auction`, `outbid_by_proxy`, `max_amount`, `status`, `is_leader`), `PUT|DELETE /auctions/{id}/watch/` (204), `GET /notifications/?unread=true`, `POST /notifications/read/` (`{ids}` o `{all: true}` -> `{updated}`), `POST /reports/`. Crear subasta acepta `proxy_enabled` y `closing_policy: soft_close` con `soft_close_window_s`, `soft_close_extension_s`, `soft_close_max_total_s` (por defecto 120/120/3600). El detalle trae `soft_close` (`extended`, `original_ends_at`) y `viewer.my_proxy_max` (solo el propio).
+- Acción requerida: tras cada puja, re-leer `ends_at` (puede extenderse). Polling de notificaciones cada 30 s. Nuevos códigos `PROXY_NOT_ENABLED`, `ALREADY_REPORTED`. `PROXY_LIMIT_DECREASE_NOT_ALLOWED` si se baja o repite el máximo.
+- Cómo validar: `tests/auctions/test_phase3_flow.py` muestra cada flujo.
+
 - Fecha/hora: 2026-10-11T21:48:54-05:00
 - Issue/PR: LX-20..LX-24 (Fase 2, ascendente con cierre fijo; rama `backend-lancex`)
 - Para rol: Frontend (LX-27, LX-28, LX-29)

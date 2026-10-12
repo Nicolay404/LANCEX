@@ -17,18 +17,26 @@ from apps.core.errors import ValidationFailed
 from apps.core.pagination import StandardPagination
 from apps.core.permissions import ByMethod, HasCapability, Public, get_capabilities
 from apps.core.time import time_source
+from apps.notifications import services as notifications
 
 from . import presenters
-from .serializers import AuctionCreateInput, AuctionUpdateInput, BidInput, CancelInput, validated
+from .serializers import (
+    AuctionCreateInput,
+    AuctionUpdateInput,
+    BidInput,
+    CancelInput,
+    ProxyLimitInput,
+    validated,
+)
 
 
 class BidRateThrottle(ScopedRateThrottle):
-    """30 pujas/min por usuario (ADR-0004). Solo para POST: el historial público no se limita aquí."""
+    """30 pujas/min por usuario (ADR-0004). Solo escrituras: el historial no se limita aquí."""
 
     scope_attr = "bid_throttle_scope"
 
     def allow_request(self, request, view):
-        if request.method != "POST":
+        if request.method not in ("POST", "PUT"):
             return True
         return super().allow_request(request, view)
 
@@ -137,6 +145,44 @@ class AuctionBidsView(APIView):
         result = bidding.place_bid(request.user, auction_id, amount=data["amount"], idempotency_key=key)
         code = status.HTTP_200_OK if result.replayed else status.HTTP_201_CREATED
         return Response(presenters.bid_accepted(result, request.user), status=code)
+
+
+class ProxyLimitView(APIView):
+    """`GET|PUT /auctions/{id}/proxy-limit/`: solo el máximo PROPIO (matriz de visibilidad)."""
+
+    permission_classes = [ByMethod(GET=HasCapability(Cap.PROXY_MANAGE_OWN), PUT=HasCapability(Cap.PROXY_MANAGE_OWN))]
+    throttle_classes = [AnonRateThrottle, UserRateThrottle, BidRateThrottle]
+    bid_throttle_scope = "bids"
+
+    def get(self, request, auction_id):
+        auction = queries.get_visible(request.user, auction_id)
+        return Response(presenters.proxy_limit_view(auction, request.user))
+
+    @extend_schema(request=ProxyLimitInput)
+    def put(self, request, auction_id):
+        data = validated(ProxyLimitInput, request.data)
+        result = bidding.set_proxy_limit(request.user, auction_id, max_amount=data["max_amount"])
+        auction = queries.get_visible(request.user, auction_id)
+        body = {**presenters.bid_accepted(result, request.user), **presenters.proxy_limit_view(auction, request.user)}
+        return Response(body)
+
+
+class WatchView(APIView):
+    """`PUT|DELETE /auctions/{id}/watch/`: seguir o dejar de seguir (idempotente)."""
+
+    permission_classes = [
+        ByMethod(PUT=HasCapability(Cap.WATCHLIST_MANAGE_OWN), DELETE=HasCapability(Cap.WATCHLIST_MANAGE_OWN))
+    ]
+
+    @extend_schema(request=None, responses={204: None})
+    def put(self, request, auction_id):
+        notifications.watch(request.user, auction_id)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @extend_schema(request=None, responses={204: None})
+    def delete(self, request, auction_id):
+        notifications.unwatch(request.user, auction_id)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class AuctionResultView(APIView):

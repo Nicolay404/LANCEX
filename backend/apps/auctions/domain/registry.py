@@ -9,8 +9,10 @@ from datetime import datetime
 
 from apps.auctions.domain import errors
 from apps.auctions.domain.closing.fixed import Fixed
+from apps.auctions.domain.closing.soft_close import SoftClose
 from apps.auctions.domain.mechanisms.ascending import Ascending
 from apps.auctions.domain.mechanisms.base import ClosingPolicy, Mechanism
+from apps.auctions.domain.proxy import ProxyBidding
 from apps.auctions.domain.state import MAX_DURATION, MIN_DURATION, AuctionConfig, AuctionState
 
 # Matriz de ADR-0005: mecanismo -> políticas permitidas, y si admite proxy.
@@ -20,10 +22,11 @@ COMPATIBILITY: dict[str, tuple[frozenset[str], bool]] = {
     "sealed": (frozenset({"fixed"}), False),
 }
 
-# Implementados hasta ahora (Fase 2). Los demás se agregan en su fase (PLAN-DE-DESARROLLO.md).
+# Implementados hasta ahora (Fase 3). Los demás se agregan en su fase (PLAN-DE-DESARROLLO.md).
 MECHANISMS: dict[str, Mechanism] = {"ascending": Ascending()}
-CLOSING_POLICIES: dict[str, ClosingPolicy] = {"fixed": Fixed()}
-PROXY_AVAILABLE = False  # Fase 3 (LX-31)
+CLOSING_POLICIES: dict[str, ClosingPolicy] = {"fixed": Fixed(), "soft_close": SoftClose()}
+PROXY_AVAILABLE = True
+SOFT_CLOSE_FIELDS = ("soft_close_window_s", "soft_close_extension_s", "soft_close_max_total_s")
 
 
 def check_combination(mechanism: str, closing_policy: str, proxy_enabled: bool) -> None:
@@ -46,7 +49,9 @@ def check_available(mechanism: str, closing_policy: str, proxy_enabled: bool) ->
 
 
 def mechanism_for(state: AuctionState) -> Mechanism:
-    return MECHANISMS[state.config.mechanism]
+    """Strategy del mecanismo; con proxy, envuelto por el decorador ProxyBidding (ADR-0005)."""
+    base = MECHANISMS[state.config.mechanism]
+    return ProxyBidding(base) if state.config.proxy_enabled else base
 
 
 def closing_policy_for(state: AuctionState) -> ClosingPolicy:
@@ -70,4 +75,8 @@ def validate_config(cfg: AuctionConfig) -> None:
     check_combination(cfg.mechanism, cfg.closing_policy, cfg.proxy_enabled)
     check_available(cfg.mechanism, cfg.closing_policy, cfg.proxy_enabled)
     MECHANISMS[cfg.mechanism].validate_config(cfg)
+    if cfg.closing_policy == "soft_close":
+        CLOSING_POLICIES["soft_close"].validate_config(cfg)
+    elif any(getattr(cfg, f) is not None for f in SOFT_CLOSE_FIELDS):
+        raise errors.config_error("closing_policy", "Los parámetros de soft close solo aplican a soft_close.")
     validate_schedule(cfg.starts_at, cfg.ends_at)

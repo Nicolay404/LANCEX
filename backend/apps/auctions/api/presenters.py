@@ -14,7 +14,7 @@ from apps.auctions.domain import registry
 from apps.auctions.domain.money import to_str
 from apps.auctions.domain.state import Status
 from apps.auctions.models import Auction
-from apps.auctions.services import queries
+from apps.auctions.services import bidding, queries
 from apps.auctions.services.snapshot import Effective
 from apps.core.capabilities import Cap, CapabilitySet
 
@@ -84,6 +84,7 @@ def detail(auction: Auction, ev: Effective, now: datetime, user, caps: Capabilit
         "starting_price": to_str(auction.starting_price),
         "min_increment": to_str(auction.min_increment),
         **reserve_info(auction),
+        "soft_close": _soft_close(auction),
         "candle": None,  # Fase 6
         "server_time": now,
         "version": auction.version,
@@ -97,9 +98,37 @@ def detail(auction: Auction, ev: Effective, now: datetime, user, caps: Capabilit
             "is_owner": owner,
             "is_leader": _uid(user) == (str(auction.leader_user_id) if auction.leader_user_id else None),
             "watching": queries.is_watching(user, auction.pk),
-            "my_proxy_max": None,  # Fase 3: solo el máximo propio
+            "my_proxy_max": _my_proxy_max(auction, user),  # solo el máximo PROPIO
         }
     return data
+
+
+def _soft_close(auction: Auction) -> dict | None:
+    if auction.closing_policy != "soft_close":
+        return None
+    return {
+        "window_s": auction.soft_close_window_s,
+        "extension_s": auction.soft_close_extension_s,
+        "max_total_s": auction.soft_close_max_total_s,
+        "original_ends_at": auction.original_ends_at,
+        "extended": bool(auction.original_ends_at and auction.ends_at and auction.ends_at > auction.original_ends_at),
+    }
+
+
+def _my_proxy_max(auction: Auction, user) -> str | None:
+    if not auction.proxy_enabled:
+        return None
+    limit = bidding.own_proxy_limit(user, auction.pk)
+    return to_str(limit.max_amount) if limit is not None and limit.status == "active" else None
+
+
+def proxy_limit_view(auction: Auction, user) -> dict:
+    limit = bidding.own_proxy_limit(user, auction.pk)
+    return {
+        "max_amount": to_str(limit.max_amount) if limit else None,
+        "status": limit.status if limit else None,
+        "is_leader": str(auction.leader_user_id) == _uid(user),
+    }
 
 
 def live(auction: Auction, ev: Effective, now: datetime, user) -> dict:
@@ -146,13 +175,11 @@ def bid_history(bids, auction: Auction, ev: Effective, user, caps: CapabilitySet
 
 def bid_accepted(result, user) -> dict:
     auction = result.auction
+    bid = result.bid
     return {
-        "bid": {
-            "seq": result.bid.seq,
-            "amount": to_str(result.bid.amount),
-            "source": result.bid.source,
-            "accepted_at": result.bid.accepted_at,
-        },
+        "bid": None
+        if bid is None
+        else {"seq": bid.seq, "amount": to_str(bid.amount), "source": bid.source, "accepted_at": bid.accepted_at},
         "auction": {
             "current_price": to_str(auction.current_price),
             "viewer_is_leader": str(auction.leader_user_id) == _uid(user),

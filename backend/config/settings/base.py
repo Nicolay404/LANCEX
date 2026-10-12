@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     "apps.auctions",
     "apps.audit",
     "apps.notifications",
+    "apps.moderation",
 ]
 
 # ADR-0003: ninguna app tiene migraciones de Django.

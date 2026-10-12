@@ -50,12 +50,14 @@
 | 409 | `OFFER_ABOVE_MAXIMUM` | Inversa: `details.maximum_allowed` |
 | 409 | `ALREADY_LEADING` | El líder intenta superarse |
 | 409 | `PROXY_LIMIT_DECREASE_NOT_ALLOWED` | Intento de bajar el máximo |
+| 409 | `PROXY_NOT_ENABLED` | Se intenta fijar un máximo proxy en una subasta sin `proxy_enabled` |
 | 409 | `RULES_LOCKED` | Edición de reglas tras publicar |
 | 409 | `LISTING_LOCKED` | Edición de una publicación con subasta no terminal (`draft`, `scheduled`, `active`) |
 | 409 | `LISTING_HAS_OPEN_AUCTION` | La publicación ya tiene una subasta `draft`, `scheduled` o `active` |
 | 409 | `INVALID_STATE_TRANSITION` | Publicar/cancelar en estado no permitido |
 | 409 | `IDEMPOTENCY_CONFLICT` | Misma clave con distinto contenido |
 | 409 | `LIMIT_REACHED` | Límite de publicaciones, subastas abiertas o reportes |
+| 409 | `ALREADY_REPORTED` | El usuario ya reportó ese objeto |
 | 409 | `LAST_OWNER` / `LAST_ADMIN` | Se intenta dejar sin propietario a una organización o sin admin a la plataforma |
 | 409 | `EMAIL_ALREADY_REGISTERED` | Registro duplicado |
 | 429 | `RATE_LIMITED` | Throttling o login bloqueado 15 min tras 5 fallos por email (`details.retry_after_s`) |

@@ -40,7 +40,7 @@
 3. El postor no es el líder actual (`ALREADY_LEADING`). Para subir su techo, el líder usa proxy.
 4. El postor no es el dueño (`BID_ON_OWN_AUCTION`).
 
-**Resultado:** gana la puja válida con mayor importe (que por construcción es la de mayor `seq` válida). Precio final = su importe. Se aplica la reserva.
+**Resultado:** gana la puja válida con mayor importe (que por construcción es la de mayor `seq` válida). Si dos pujas válidas tienen el mismo importe (solo ocurre en el empate de proxy `Cc = M_L`), gana la de mayor `seq`: es la respuesta automática del líder, cuyo límite llegó antes (§3). Aclaración del 2026-10-11, con prueba de regresión en `tests/auctions/test_domain_proxy_soft_close.py`. Precio final = su importe. Se aplica la reserva.
 
 ## 3. Proxy bidding (capacidad de `ascending`)
 
