@@ -56,8 +56,10 @@ class Ascending:
         counted = [b for b in bids if b.counted]
         if not counted:
             return Result(outcome=Outcome.UNSOLD)
-        # Mayor importe; en empate, el seq menor (llegó antes). Por construcción no hay empates.
-        best = max(counted, key=lambda b: (b.amount, -b.seq))
+        # El libro ascendente nunca baja: gana la última puja válida (mayor importe y, en empate, mayor seq).
+        # El único empate posible es el del proxy (Cc = M_L): la respuesta automática del líder se registra
+        # después, pero su límite llegó antes, y REGLAS §3 le da la victoria.
+        best = max(counted, key=lambda b: (b.amount, b.seq))
         reserve = state.config.reserve_price
         if reserve is not None and best.amount < reserve:
             return Result(outcome=Outcome.UNSOLD)

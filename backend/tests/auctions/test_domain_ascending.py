@@ -113,8 +113,7 @@ class TestConfig:
     @pytest.mark.parametrize(
         "changes",
         [
-            {"closing_policy": "soft_close"},  # Fase 3
-            {"proxy_enabled": True},  # Fase 3
+            {"closing_policy": "candle"},  # Fase 6
             {"mechanism": "sealed"},  # Fase 4
         ],
     )
@@ -190,9 +189,10 @@ class TestWinner:
         assert self.mech.select_winner(s, [BidRecord(1, "u1", D("149.99"))]).outcome == "unsold"
         assert self.mech.select_winner(s, [BidRecord(1, "u1", D("150.00"))]).outcome == "awarded"
 
-    def test_tie_goes_to_lower_seq(self):
-        bids = [BidRecord(2, "late", D("100.00")), BidRecord(1, "early", D("100.00"))]
-        assert self.mech.select_winner(state(), bids).winner_user_id == "early"
+    def test_tie_goes_to_the_last_bid_of_the_book(self):
+        """Empate proxy Cc = M_L: el líder responde después (seq mayor) y gana (REGLAS §3)."""
+        bids = [BidRecord(1, "challenger", D("200.00")), BidRecord(2, "leader", D("200.00"))]
+        assert self.mech.select_winner(state(), bids).winner_user_id == "leader"
 
     def test_uncounted_bids_are_ignored(self):
         bids = [BidRecord(1, "u1", D("100.00")), BidRecord(2, "u2", D("200.00"), counted=False)]
