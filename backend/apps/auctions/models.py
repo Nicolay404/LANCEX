@@ -206,6 +206,29 @@ class AuctionParticipant(models.Model):
         return f"{self.organization_id} en {self.auction_id} ({self.status})"
 
 
+class Rating(models.Model):
+    """Calificación entre dueño y ganador tras una liquidación final (REGLAS §10)."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    auction = models.ForeignKey(Auction, on_delete=models.DO_NOTHING, db_column="auction_id", related_name="+")
+    rater_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING, db_column="rater_user_id", related_name="+"
+    )
+    ratee_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING, db_column="ratee_user_id", related_name="+"
+    )
+    score = models.SmallIntegerField()
+    comment = models.CharField(max_length=300, default="")
+    created_at = models.DateTimeField(db_default=ClockTimestamp())
+
+    class Meta:
+        managed = False
+        db_table = "rating"
+
+    def __str__(self) -> str:
+        return f"{self.rater_user_id}->{self.ratee_user_id}: {self.score}"
+
+
 class JobHeartbeat(models.Model):
     """Último ciclo de `close_due_auctions` por laptop (`DEV_NAME`); alimenta la salud del admin."""
 

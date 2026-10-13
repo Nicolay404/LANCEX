@@ -203,3 +203,18 @@ endpoints:
     methods:
       DELETE: {visitor: 401, user: 404, buyer_member: 404, supplier_member: 404, moderator: 403, admin: 403}
     notes: "Solo sin subasta abierta (LISTING_LOCKED)."
+
+  - route: /api/v1/auctions/{auction_id}/settlement/
+    methods:
+      PATCH: {visitor: 401, user: 403, buyer_member: 403, supplier_member: 403, moderator: 403, admin: 403}
+    notes: "Con subasta ajena. Dueño (o compradora) de una adjudicada en pending -> 200."
+
+  - route: /api/v1/auctions/{auction_id}/rating/
+    methods:
+      POST: {visitor: 401, user: 403, buyer_member: 403, supplier_member: 403, moderator: 403, admin: 403}
+    notes: "Con subasta ajena cerrada. Dueño o ganador con liquidación final -> 201; segunda vez -> 409 ALREADY_RATED."
+
+  - route: /api/v1/users/{user_id}/
+    methods:
+      GET: {visitor: 200, user: 200, buyer_member: 200, supplier_member: 200, moderator: 200, admin: 200}
+    notes: "Público, sin email."

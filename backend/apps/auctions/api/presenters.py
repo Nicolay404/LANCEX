@@ -444,6 +444,7 @@ def result_view(auction: Auction, ev: Effective, user) -> dict:
         "offer_count": auction.active_offer_count if is_sealed(auction) else None,
         "closed_at": auction.closed_at,
         "cancelled_at": auction.cancelled_at,
+        "settlement_status": auction.settlement_status if (owner or viewer == winner) else None,
         **reserve_info(auction),
     }
     if is_reverse(auction) and auction.outcome == "awarded" and auction.winner_organization_id:

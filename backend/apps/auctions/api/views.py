@@ -10,7 +10,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle, ScopedRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
 
-from apps.auctions.services import bidding, closing, lifecycle, participants, queries, sealed
+from apps.auctions.services import bidding, closing, lifecycle, participants, post_close, queries, sealed
 from apps.auctions.services.snapshot import evaluate
 from apps.core.capabilities import Cap, OrgCap
 from apps.core.errors import Conflict, ValidationFailed
@@ -28,8 +28,10 @@ from .serializers import (
     ParticipantDecisionInput,
     ParticipantRegisterInput,
     ProxyLimitInput,
+    RatingInput,
     ReverseOfferInput,
     SealedOfferInput,
+    SettlementInput,
     validated,
 )
 
@@ -266,6 +268,29 @@ class CandleProofView(APIView):
         if not presenters.candle_revealed(auction):
             raise Conflict(code="NOT_REVEALED_YET", message="La semilla se revela al cierre.")
         return Response(presenters.candle_proof(auction))
+
+
+class SettlementView(APIView):
+    """`PATCH /auctions/{id}/settlement/`: el dueño (o la compradora) registra el resultado del trato."""
+
+    permission_classes = [HasCapability(Cap.AUCTION_MANAGE_OWN)]
+
+    @extend_schema(request=SettlementInput)
+    def patch(self, request, auction_id):
+        post_close.update_settlement(request.user, auction_id, **validated(SettlementInput, request.data))
+        auction = queries.get_visible(request.user, auction_id)
+        return Response({"settlement_status": auction.settlement_status, "settlement_note": auction.settlement_note})
+
+
+class RatingView(APIView):
+    """`POST /auctions/{id}/rating/`: dueño o ganador, una vez, con liquidación final."""
+
+    permission_classes = [HasCapability(Cap.RATING_SUBMIT)]
+
+    @extend_schema(request=RatingInput)
+    def post(self, request, auction_id):
+        rating = post_close.rate(request.user, auction_id, **validated(RatingInput, request.data))
+        return Response({"id": str(rating.pk), "score": rating.score}, status=status.HTTP_201_CREATED)
 
 
 class WatchView(APIView):

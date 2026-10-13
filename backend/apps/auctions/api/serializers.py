@@ -86,6 +86,16 @@ class ParticipantDecisionInput(StrictInputMixin, serializers.Serializer):
     reason = serializers.CharField(max_length=300, required=False, allow_blank=True, default="")
 
 
+class SettlementInput(StrictInputMixin, serializers.Serializer):
+    settlement_status = serializers.ChoiceField(choices=["completed", "failed"])
+    settlement_note = serializers.CharField(max_length=300, required=False, allow_blank=True, default="")
+
+
+class RatingInput(StrictInputMixin, serializers.Serializer):
+    score = serializers.IntegerField(min_value=1, max_value=5)
+    comment = serializers.CharField(max_length=300, required=False, allow_blank=True, default="")
+
+
 class CancelInput(StrictInputMixin, serializers.Serializer):
     reason = serializers.CharField(min_length=3, max_length=300)
 

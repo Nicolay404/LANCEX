@@ -101,6 +101,31 @@ class PasswordView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+class PublicProfileView(APIView):
+    """`GET /users/{id}/`: nombre visible y reputación. Nunca el email (matriz de visibilidad)."""
+
+    permission_classes = [Public]
+
+    def get(self, request, user_id):
+        from apps.accounts.models import User
+        from apps.auctions.services import queries
+        from apps.core.errors import NotFound
+
+        user = User.objects.filter(pk=user_id).only("id", "display_name", "created_at").first()
+        if user is None:
+            raise NotFound()
+        rating_avg, rating_count = queries.reputation(user.pk)
+        return Response(
+            {
+                "id": str(user.pk),
+                "display_name": user.display_name,
+                "rating_avg": rating_avg,
+                "rating_count": rating_count,
+                "member_since": user.created_at,
+            }
+        )
+
+
 def _valid(serializer_class, request) -> dict:
     serializer = serializer_class(data=request.data)
     serializer.is_valid(raise_exception=True)
