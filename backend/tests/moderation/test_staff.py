@@ -7,9 +7,9 @@ from rest_framework.test import APIClient
 from rest_framework.throttling import ScopedRateThrottle
 
 from apps.accounts.models import User
-from apps.audit.models import AuditEvent
 from apps.auctions.models import Auction, ProxyBidLimit, SealedOffer
 from apps.auctions.services import bidding
+from apps.audit.models import AuditEvent
 from apps.moderation.models import Report
 from tests.auctions.helpers import (
     PASSWORD,

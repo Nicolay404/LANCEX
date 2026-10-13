@@ -210,3 +210,21 @@
 - Pruebas ejecutadas y resultado real: ruff limpio; `LANCEX_REQUIRE_DB=1 pytest`: **412 passed** (instante determinista y dentro de la ventana, verificación con semilla falsa, límites, no fuga de semilla/instante en API, `rules_snapshot` y auditoría para público/dueño/admin, corte retroactivo con `counted = false`, script independiente con salida 0).
 - Riesgos/bloqueos: límite declarado en REGLAS §5 (quien accede a la base podría leer la semilla antes).
 - Handoff/siguiente paso: FE (LX-62), BD (LX-61). Fase 7.
+
+## 2026-10-12T20:26:42-05:00: CIERRE: Fase 7 backend (LX-70, LX-71, LX-72, LX-77, LX-79) + seed_demo y bootstrap_admin
+- Humano responsable: Nicolay.
+- Herramienta/modelo IA: Claude (claude-opus-5-5).
+- Rama y commit: `feat/architect/fase-5` (continuación autorizada) → `backend-lancex`.
+- Objetivo: cerrar el backend del contrato v1.
+- Archivos/documentos modificados: `catalog/services/{storage,images}.py` (puerto `ObjectStorage` + adaptador Supabase con `httpx`), modelo `ListingImage`, vistas de imágenes; `auctions/services/post_close.py`, modelo `Rating`, vistas de liquidación y calificación, perfil público `GET /users/{id}/`; `moderation/services/staff.py` y `api/staff_views.py` (moderación y administración); comandos `bootstrap_admin` y `seed_demo`; `requirements.txt` (`httpx==0.28.1`, permitido por ADR-0004); settings `SUPABASE`; pruebas `test_images.py`, `test_post_close.py`, `test_staff.py`, `test_commands.py`; matriz de endpoints; contrato; README; configuración local; handoffs; estado.
+- Decisiones/supuestos:
+  - Imágenes: tipo y tamaño se validan al pedir la URL y otra vez con los metadatos REALES del objeto (HEAD); si no cumplen, el objeto se borra (T17). Si Storage falla, el detalle se sirve sin imágenes.
+  - Suspensión (ROLES §7): cancela `draft/scheduled` propias (`owner_suspended`), cancela proxies activos, retira ofertas selladas vigentes en subastas abiertas (ajusta `active_offer_count`), revoca sesiones; las activas siguen.
+  - Un admin no puede ser suspendido (se usa el cambio de rol); admin sí suspende moderadores.
+  - Pasar a staff exige no tener membresías ni operaciones abiertas (`OPEN_ACTIVITY`).
+  - `PATCH /admin/categories/{id}/` en vez de un PATCH sin id (contrato actualizado).
+  - El reportante no recibe notificación al resolverse (el tipo no está en el catálogo de REGLAS §11): pendiente de decisión.
+  - `seed_demo` y `bootstrap_admin` sin contraseña por defecto (la base es compartida).
+- Pruebas ejecutadas y resultado real: ruff limpio; `manage.py check` sin errores; `LANCEX_REQUIRE_DB=1 pytest`: **445 passed**; `seed_demo` sobre una base recién creada: 5 subastas (ascendente fija, proxy + soft close, sellada, vela, inversa) y 6 usuarios; segunda ejecución sin duplicados.
+- Riesgos/bloqueos: Storage real no probado (sin bucket ni claves); notificación al reportante pendiente de decisión; QA-05 (desempeño) no medido.
+- Handoff/siguiente paso: PR `backend-lancex` → `main`; humano: contraseña `lancex_app`, bucket `listing-images`, claves de Storage.

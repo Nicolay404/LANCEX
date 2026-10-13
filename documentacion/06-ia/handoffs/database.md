@@ -11,6 +11,15 @@
 
 ## Handoffs activos
 
+- Fecha/hora: 2026-10-12T20:26:42-05:00
+- Issue/PR: LX-13 (seed), LX-75, LX-80 (Fase 7)
+- Para rol: Base de datos / seguridad
+- Estado: listo para consumir
+- Contexto: `seed_demo` (solo DML, idempotente, se niega con `APP_ENV=production`, contraseña obligatoria por variable) y `bootstrap_admin` (solo el primer admin) implementados por ARQ para desbloquear al frontend. Modelos nuevos `ListingImage` y `Rating`. Base de LX-80 cubierta: abuso de staff (moderador no suspende staff, último admin, step-up) y sesiones (suspensión y cambio de rol las revocan).
+- Archivos, tablas o endpoints afectados: `listing_image` (DELETE usado al borrar imagen), `rating`, `report` (resolución), `app_user` (estado/rol), `proxy_bid_limit`/`sealed_offer` (efectos de suspensión), `job_heartbeat`.
+- Acción requerida: revisar el seed (puede reemplazar al tuyo de LX-13); LX-75 (desempeño y caída de Firestore); crear el bucket PRIVADO `listing-images` en Supabase Storage y compartir `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` por el canal privado. Sin cambios de esquema.
+- Cómo validar: `LANCEX_REQUIRE_DB=1 python -m pytest -q` (445 passed).
+
 - Fecha/hora: 2026-10-12T20:17:21-05:00
 - Issue/PR: LX-61 (verificación de vela, QA-07)
 - Para rol: Base de datos

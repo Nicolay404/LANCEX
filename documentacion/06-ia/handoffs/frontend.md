@@ -9,6 +9,15 @@
 
 ## Handoffs activos
 
+- Fecha/hora: 2026-10-12T20:26:42-05:00
+- Issue/PR: LX-70, LX-71, LX-72, LX-77, LX-79 (Fase 7; rama `backend-lancex`)
+- Para rol: Frontend (LX-73, LX-78)
+- Estado: listo para consumir — el backend del contrato v1 está completo
+- Contexto: imágenes, liquidación y calificaciones, perfil público, moderación y administración; datos demo.
+- Archivos, tablas o endpoints afectados: imágenes `POST /listings/{id}/images/upload-url/` -> `{upload_url, storage_path, expires_in}` (el navegador hace `PUT`/`POST` del archivo a `upload_url`), luego `POST /listings/{id}/images/` `{storage_path, position}`; `DELETE /listings/{id}/images/{image_id}/`; `images[]` con URL firmada (1 h) en el detalle de la subasta y de la publicación. `PATCH /auctions/{id}/settlement/`, `POST /auctions/{id}/rating/`, `GET /users/{id}/`. Moderación: `/moderation/summary/`, `/moderation/reports/`, `/moderation/reports/{id}/resolve/`, `/moderation/auctions/{id}/`, `/moderation/auctions/{id}/cancel/`, `/moderation/users/{id}/`, `/moderation/users/{id}/suspend/`, `/moderation/organizations/...`. Admin: `/admin/users/`, `/admin/users/{id}/reactivate/`, `/admin/users/{id}/role/` (step-up), `/admin/categories/` y `/admin/categories/{id}/`, `/admin/audit-events/`, `/admin/system-health/`.
+- Acción requerida: datos demo con `python manage.py seed_demo` (contraseña por `LANCEX_DEMO_PASSWORD`; usuarios `ana|beto|carla|diego|moderador|admin@demo.lancex.test`). Nuevos códigos: `ALREADY_RATED`, `OPEN_ACTIVITY`, `SLUG_ALREADY_EXISTS`, `STORAGE_UNAVAILABLE` (503).
+- Cómo validar: `tests/catalog/test_images.py`, `tests/auctions/test_post_close.py`, `tests/moderation/test_staff.py`.
+
 - Fecha/hora: 2026-10-12T20:17:21-05:00
 - Issue/PR: LX-60 (Fase 6, vela; rama `backend-lancex`)
 - Para rol: Frontend (LX-62)
