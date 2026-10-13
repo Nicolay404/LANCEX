@@ -17,6 +17,7 @@ from .serializers import (
     TransferOwnershipInput,
     VerificationDecisionInput,
     organization_payload,
+    review_detail_payload,
     review_payload,
 )
 
@@ -94,6 +95,16 @@ class OrganizationReviewListView(APIView):
         paginator = StandardPagination()
         page = paginator.paginate_queryset(qs, request, view=self)
         return paginator.get_paginated_response([review_payload(o) for o in page])
+
+
+class OrganizationReviewDetailView(APIView):
+    """`GET /moderation/organizations/{id}/`: datos y miembros para decidir la verificación."""
+
+    permission_classes = [HasCapability(Cap.MODERATION_VERIFY_ORGANIZATIONS)]
+
+    def get(self, request, organization_id):
+        org, members = services.organization_for_review(organization_id)
+        return Response(review_detail_payload(org, members))
 
 
 class OrganizationDecisionView(APIView):

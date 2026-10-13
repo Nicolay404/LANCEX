@@ -8,7 +8,7 @@ from rest_framework.views import APIView
 from apps.catalog import services
 from apps.catalog.services import images, procurement
 from apps.core.capabilities import Cap, OrgCap
-from apps.core.permissions import ByMethod, HasCapability, HasOrgCapability, Public
+from apps.core.permissions import ByMethod, HasAnyOrgCapability, HasCapability, HasOrgCapability, Public
 
 from .serializers import (
     CategorySerializer,
@@ -108,7 +108,8 @@ class ProcurementRequestDetailView(APIView):
     permission_classes = [Public]
 
     def get(self, request, request_id):
-        return Response(procurement_payload(procurement.get_public(request_id)))
+        need = procurement.get_public(request_id)
+        return Response(procurement_payload(need, procurement.auction_info([need.pk]).get(str(need.pk))))
 
 
 class ImageUploadUrlView(APIView):
@@ -146,3 +147,19 @@ class ImageDeleteView(APIView):
     def delete(self, request, listing_id, image_id):
         images.delete_image(request.user, listing_id, image_id)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class OrganizationProcurementListView(APIView):
+    """`GET /organizations/{id}/procurement-requests/`: necesidades de mi organización compradora."""
+
+    permission_classes = [HasAnyOrgCapability(OrgCap.ORG_VIEW)]
+
+    def get(self, request, organization_id):
+        from apps.core.pagination import StandardPagination
+
+        paginator = StandardPagination()
+        page = paginator.paginate_queryset(
+            procurement.list_for_organization(request.user, organization_id), request, view=self
+        )
+        info = procurement.auction_info(need.pk for need in page)
+        return paginator.get_paginated_response([procurement_payload(n, info.get(str(n.pk))) for n in page])

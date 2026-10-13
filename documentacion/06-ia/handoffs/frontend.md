@@ -9,6 +9,15 @@
 
 ## Handoffs activos
 
+- Fecha/hora: 2026-10-12T23:55:03-05:00
+- Issue/PR: análisis de flujos por rol (PANTALLAS-Y-NAVEGACION.md vs API) — rama `backend-lancex`
+- Para rol: Frontend
+- Estado: listo para consumir
+- Contexto: se cerraron los huecos de backend de las pantallas documentadas para todos los roles.
+- Archivos, tablas o endpoints afectados: resultado con `winner_pseudonym` y `viewer.can_rate`/`my_rating` (pantalla `/calificar`); `GET /procurement-requests/{id}/` con `auction` y `admitted_count` (`/necesidades/:id`); `GET /organizations/{id}/procurement-requests/` (`/org/:orgId/necesidades`); `registrations_pending` en `GET /auctions/?organization=` (`/org/:orgId`); `GET /organizations/{id}/opportunities/` (`/org/:orgId/oportunidades`, ya sin conflictos de interés); `POST /auctions/{id}/reverse-quote/` (sala de puja inversa: total oficial antes de enviar); `GET /moderation/organizations/{id}/` (verificación con miembros); `reported_active_auctions` en la bandeja; notificaciones nuevas `report_resolved`, `organization_verified`, `organization_rejected` (con `data.organization_name` y `data.reason`).
+- Acción requerida: conectar esas pantallas; textos para los 3 tipos nuevos de notificación.
+- Cómo validar: `tests/auctions/test_role_flows.py`.
+
 - Fecha/hora: 2026-10-12T23:30:01-05:00
 - Issue/PR: pendientes de LX-15/LX-35/LX-38 + pantallas de PANTALLAS-Y-NAVEGACION sin endpoint (rama `backend-lancex`)
 - Para rol: Frontend

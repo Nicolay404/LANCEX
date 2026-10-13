@@ -18,6 +18,11 @@ urlpatterns = [
     ),
     path("moderation/organizations/", views.OrganizationReviewListView.as_view(), name="moderation-organizations"),
     path(
+        "moderation/organizations/<uuid:organization_id>/",
+        views.OrganizationReviewDetailView.as_view(),
+        name="moderation-organization",
+    ),
+    path(
         "moderation/organizations/<uuid:organization_id>/decision/",
         views.OrganizationDecisionView.as_view(),
         name="moderation-organization-decision",

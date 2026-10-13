@@ -320,3 +320,23 @@ endpoints:
     methods:
       GET: {visitor: 401, user: 403, buyer_member: 404, supplier_member: 404, moderator: 403, admin: 403}
     notes: "Con organización AJENA -> 404; miembro propio -> 200."
+
+  - route: /api/v1/organizations/{organization_id}/procurement-requests/
+    methods:
+      GET: {visitor: 401, user: 403, buyer_member: 404, supplier_member: 404, moderator: 403, admin: 403}
+    notes: "Con organización AJENA -> 404; miembro propio -> 200."
+
+  - route: /api/v1/organizations/{organization_id}/opportunities/
+    methods:
+      GET: {visitor: 401, user: 403, buyer_member: 404, supplier_member: 404, moderator: 403, admin: 403}
+    notes: "Con organización AJENA -> 404; miembro de proveedora -> 200 sin subastas en conflicto."
+
+  - route: /api/v1/auctions/{auction_id}/reverse-quote/
+    methods:
+      POST: {visitor: 401, user: 403, buyer_member: 403, supplier_member: 200, moderator: 403, admin: 403}
+    notes: "Solo calcula; no crea oferta."
+
+  - route: /api/v1/moderation/organizations/{organization_id}/
+    methods:
+      GET: {visitor: 401, user: 403, buyer_member: 403, supplier_member: 403, moderator: 200, admin: 200}
+    notes: "Datos y miembros con email."

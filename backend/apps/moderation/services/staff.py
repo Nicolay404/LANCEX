@@ -29,6 +29,7 @@ from apps.core.capabilities import AccountStatus, MembershipStatus, PlatformRole
 from apps.core.errors import Conflict, Forbidden, NotFound, ValidationFailed
 from apps.core.time import time_source
 from apps.moderation.models import Report
+from apps.notifications import services as notifications
 from apps.organizations.models import Organization, OrganizationMembership
 
 STAFF = (PlatformRole.MODERATOR, PlatformRole.ADMIN)
@@ -64,6 +65,12 @@ def summary() -> dict:
             status__in=(Status.SCHEDULED, Status.ACTIVE), starts_at__lte=now, ends_at__gt=now
         ).count(),
         "suspended_users": User.objects.filter(status=AccountStatus.SUSPENDED).count(),
+        # Subastas activas con algún reporte abierto (PANTALLAS §7).
+        "reported_active_auctions": Auction.objects.filter(
+            status__in=(Status.SCHEDULED, Status.ACTIVE),
+            ends_at__gt=now,
+            pk__in=Report.objects.filter(status="open", target_type="auction").values("target_id"),
+        ).count(),
     }
 
 
@@ -282,6 +289,8 @@ def resolve_report(actor: User, report_id, *, status: str, note: str, action: st
         report.resolved_by_user_id = actor.pk
         report.resolved_at = time_source.db_now()
         report.save(update_fields=["status", "resolution_note", "resolved_by_user_id", "resolved_at"])
+        # FUNCIONAMIENTO-DEL-SISTEMA.md §2: el reportante sabe que fue atendido, sin detalles de la acción.
+        notifications.notify([report.reporter_user_id], "report_resolved", data={"target_type": report.target_type})
         record(
             "report_resolved",
             actor_user_id=actor.pk,

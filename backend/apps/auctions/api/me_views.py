@@ -66,3 +66,12 @@ class OrganizationRegistrationsView(APIView):
                 ]
             }
         )
+
+
+class OrganizationOpportunitiesView(APIView):
+    """`GET /organizations/{id}/opportunities/`: inversas abiertas para mi proveedora, sin conflictos."""
+
+    permission_classes = [HasAnyOrgCapability(OrgCap.ORG_VIEW)]
+
+    def get(self, request, organization_id):
+        return Response({"results": participants.opportunities(request.user, organization_id)})

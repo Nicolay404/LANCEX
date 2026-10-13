@@ -11,6 +11,11 @@ urlpatterns = [
     path("listings/<uuid:listing_id>/images/<uuid:image_id>/", views.ImageDeleteView.as_view(), name="image-delete"),
     path("procurement-requests/", views.ProcurementRequestCreateView.as_view(), name="procurement-requests"),
     path(
+        "organizations/<uuid:organization_id>/procurement-requests/",
+        views.OrganizationProcurementListView.as_view(),
+        name="organization-procurement-requests",
+    ),
+    path(
         "procurement-requests/<uuid:request_id>/",
         views.ProcurementRequestDetailView.as_view(),
         name="procurement-request-detail",

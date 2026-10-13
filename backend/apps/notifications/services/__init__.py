@@ -30,10 +30,15 @@ TYPES = frozenset(
         "watch_auction_started",
         "watch_auction_ending",
         "rating_received",
+        "report_resolved",  # FUNCIONAMIENTO-DEL-SISTEMA.md §2: "atendido", sin detalles de la acción
+        "organization_verified",
+        "organization_rejected",
     }
 )
 # Claves permitidas en `data` (lista blanca: nada privado llega a una notificación).
-DATA_KEYS = frozenset({"title", "current_price", "final_price", "outcome", "ends_at", "reason"})
+DATA_KEYS = frozenset(
+    {"title", "current_price", "final_price", "outcome", "ends_at", "reason", "target_type", "organization_name"}
+)
 
 
 def notify(user_ids: Iterable, notification_type: str, *, auction_id=None, data: dict | None = None) -> int:

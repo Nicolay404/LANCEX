@@ -251,3 +251,14 @@
 - Pruebas ejecutadas y resultado real: backend `ruff` limpio, `check` sin errores, `LANCEX_REQUIRE_DB=1 pytest` **458 passed**; frontend `typecheck` y `lint` sin errores, `vitest` **140 passed**; humo real con Vite (`:5173`) + Django (`:8000`) sobre `lancex_dev` con `seed_demo`: SPA 200, catálogo con 5 modalidades por el proxy, login sin CSRF -> `CSRF_FAILED`, con CSRF -> 200, `GET /listings/`, `listing_id`, `PATCH /auth/me/` (bio/ciudad), `/me/summary/`, `/me/activity/`, `/auth/sessions/` correctos.
 - Riesgos/bloqueos: hasta aplicar la migración nueva en Supabase, el backend contra Supabase falla al leer usuarios (handoff BD bloqueante). Storage sin configurar (imágenes 503).
 - Handoff/siguiente paso: BD aplica la migración; FE conecta las pantallas nuevas.
+
+## 2026-10-12T23:55:03-05:00: CIERRE: análisis de flujos por rol y cierre de huecos de API
+- Humano responsable: Nicolay.
+- Herramienta/modelo IA: Claude (claude-opus-5-5).
+- Rama y commit: `feat/architect/cuenta-y-actividad` → `backend-lancex`.
+- Objetivo: el humano pidió analizar todos los flujos por rol. Se cruzaron las 8 secciones de PANTALLAS-Y-NAVEGACION.md con los 61 endpoints del URLConf y las rutas del frontend.
+- Hallazgos y resolución (11): (1) resultado sin ganador seudonimizado; (2) necesidad pública sin subasta ni admitidos; (3) sin estado "puede calificar"; (4) miembros de la compradora (no creadores) sin contacto del ganador; (5) panel de organización sin inscripciones pendientes; (6) sin listado de necesidades por organización; (7) sin oportunidades filtradas por conflicto de interés; (8) sin total oficial antes de ofertar; (9) verificación sin miembros; (10) bandeja sin subastas reportadas; (11) el reportante no recibía aviso aunque FUNCIONAMIENTO-DEL-SISTEMA.md lo exige (cierra la decisión que quedó pendiente). Además, aviso a owners al verificar/rechazar su organización.
+- Archivos/documentos modificados: presenters (resultado), `catalog/services/procurement.py` y vistas, `auctions/services/participants.py` (`pending_counts`, `opportunities`), `auctions/api/{views,me_views,urls}.py` (`ReverseQuoteView`, `OrganizationOpportunitiesView`), `organizations/services` y vistas (detalle de verificación, aviso a owners), `moderation/services/staff.py`, `notifications/services` (3 tipos), modelo `AuctionParticipant.related_name`; pruebas `test_role_flows.py`; matriz; contrato; REGLAS §11; handoff Frontend; estado.
+- Pruebas ejecutadas y resultado real: ruff limpio; `check` sin errores; `LANCEX_REQUIRE_DB=1 pytest` **466 passed**; backend reiniciado y verificado por el proxy de Vite (SPA 200, endpoint nuevo responde).
+- Riesgos/bloqueos: siguen pendientes la migración de perfil en Supabase (BD) y Storage.
+- Handoff/siguiente paso: Frontend conecta las pantallas listadas en su handoff.

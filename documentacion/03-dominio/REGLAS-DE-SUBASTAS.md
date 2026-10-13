@@ -168,7 +168,7 @@ Toda cancelación genera auditoría y notifica a participantes y seguidores.
 ## 11. Seguimiento y notificaciones internas
 
 - **Watchlist:** cualquier usuario autenticado sigue o deja de seguir una subasta pública.
-- **Notificaciones** (tabla `notification`, leídas por polling): `outbid`, `auction_won`, `auction_lost`, `auction_closed_owner`, `auction_unsold_owner`, `auction_cancelled`, `participant_admitted`, `participant_rejected`, `watch_auction_started`, `watch_auction_ending` (10 minutos antes del fin en subastas `fixed`), `rating_received`.
+- **Notificaciones** (tabla `notification`, leídas por polling): `outbid`, `auction_won`, `auction_lost`, `auction_closed_owner`, `auction_unsold_owner`, `auction_cancelled`, `participant_admitted`, `participant_rejected`, `watch_auction_started`, `watch_auction_ending` (10 minutos antes del fin en subastas `fixed`), `rating_received`, `report_resolved` (al reportante, sin detalles de la acción, según FUNCIONAMIENTO-DEL-SISTEMA.md), `organization_verified` y `organization_rejected` (a los owners, con la nota).
 - Se crean en la misma transacción del evento que las causa (o en el job de cierre); nunca contienen máximos proxy ni importes sellados no revelados.
 
 ## 12. Catálogo de auditoría (`audit_event.action`)

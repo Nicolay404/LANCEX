@@ -200,6 +200,65 @@ def admitted_organization_for(user, auction: Auction, organization_id=None) -> s
     return admitted.pop()
 
 
+def pending_counts(auction_ids) -> dict[str, int]:
+    """Inscripciones `registered` por subasta (para el panel de la compradora)."""
+    from django.db.models import Count
+
+    rows = (
+        AuctionParticipant.objects.filter(auction_id__in=list(auction_ids), status="registered")
+        .values("auction_id")
+        .annotate(n=Count("id"))
+    )
+    return {str(r["auction_id"]): r["n"] for r in rows}
+
+
+def opportunities(user, organization_id) -> list[dict]:
+    """`/org/:orgId/oportunidades`: inversas en inscripción o activas para MI proveedora, excluyendo
+    las de organizaciones donde el usuario tiene conflicto de interés (PANTALLAS §5, ROLES §5)."""
+    from apps.organizations.models import Organization
+
+    if organizations.active_membership(user, organization_id) is None:
+        raise NotFound()
+    org = Organization.objects.only("is_supplier").get(pk=organization_id)
+    if not org.is_supplier:
+        return []
+    now = time_source.db_now()
+    conflicted = organizations.member_organization_ids(user)  # ni la propia ni ninguna de mis compradoras
+    candidates = (
+        Auction.objects.filter(mechanism="reverse", status__in=(Status.SCHEDULED, Status.ACTIVE), ends_at__gt=now)
+        .exclude(organization_id__in=conflicted)
+        .select_related("procurement_request__buyer_organization")
+        .order_by("starts_at")
+    )
+    mine = {
+        str(p.auction_id): p
+        for p in AuctionParticipant.objects.filter(organization_id=organization_id, auction__in=candidates)
+    }
+    items = []
+    for a in candidates:
+        need = a.procurement_request
+        participant = mine.get(str(a.pk))
+        items.append(
+            {
+                "auction_id": str(a.pk),
+                "title": need.title if need else None,
+                "buyer_organization": need.buyer_organization.legal_name if need else None,
+                "phase": "registration" if now < a.starts_at else "bidding",
+                "starts_at": a.starts_at,
+                "ends_at": a.ends_at,
+                "reference_budget": f"{a.reference_budget:.2f}" if a.reference_budget is not None else None,
+                "quantity": f"{need.quantity:.3f}" if need else None,
+                "unit": need.unit if need else None,
+                "my_registration": (
+                    {"id": str(participant.pk), "status": effective_participant_status(participant, a, now)}
+                    if participant
+                    else None
+                ),
+            }
+        )
+    return items
+
+
 def admitted_count(auction: Auction) -> int:
     return AuctionParticipant.objects.filter(auction_id=auction.pk, status="admitted").count()
 

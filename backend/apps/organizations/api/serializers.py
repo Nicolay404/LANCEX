@@ -57,6 +57,23 @@ def organization_payload(org, membership, members) -> dict:
     }
 
 
+def review_detail_payload(org, members) -> dict:
+    """Vista de moderación: datos y miembros (staff ve emails, matriz de visibilidad)."""
+    return {
+        **review_payload(org),
+        "members": [
+            {
+                "user_id": str(m.user_id),
+                "display_name": m.user.display_name,
+                "email": m.user.email,
+                "role": m.role,
+                "status": m.status,
+            }
+            for m in members
+        ],
+    }
+
+
 def review_payload(org) -> dict:
     return {
         "id": str(org.pk),

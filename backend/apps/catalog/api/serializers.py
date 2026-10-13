@@ -66,9 +66,10 @@ class ProcurementRequestInput(StrictInputMixin, serializers.Serializer):
     delivery_location = serializers.CharField(max_length=120)
 
 
-def procurement_payload(obj) -> dict:
-    """Detalle público de una necesidad B2B."""
+def procurement_payload(obj, auction: dict | None = None) -> dict:
+    """Detalle público de una necesidad B2B (+ su subasta y proveedores admitidos)."""
     return {
+        "auction": auction,
         "id": str(obj.pk),
         "buyer_organization": {"id": str(obj.buyer_organization_id), "legal_name": obj.buyer_organization.legal_name},
         "title": obj.title,

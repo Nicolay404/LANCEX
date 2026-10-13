@@ -234,6 +234,18 @@ def organizations_for_review(status: str | None):
     return qs
 
 
+def organization_for_review(organization_id):
+    org = Organization.objects.select_related("created_by_user").filter(pk=organization_id).first()
+    if org is None:
+        raise NotFound()
+    members = list(
+        OrganizationMembership.objects.select_related("user")
+        .filter(organization_id=organization_id)
+        .order_by("-role", "created_at")
+    )
+    return org, members
+
+
 def decide_verification(moderator: User, organization_id, *, status: str, note: str) -> Organization:
     if moderator.platform_role not in (PlatformRole.MODERATOR, PlatformRole.ADMIN):
         raise Forbidden()
@@ -253,4 +265,19 @@ def decide_verification(moderator: User, organization_id, *, status: str, note: 
             entity_id=org.pk,
             data={"note": note},
         )
+        _notify_owners(org, status, note)
     return org
+
+
+def _notify_owners(org: Organization, status: str, note: str) -> None:
+    """Aviso a los owners activos de la decisión de verificación."""
+    from apps.notifications import services as notifications
+
+    owners = OrganizationMembership.objects.filter(
+        organization_id=org.pk, role=MembershipRole.OWNER, status=MembershipStatus.ACTIVE
+    ).values_list("user_id", flat=True)
+    notifications.notify(
+        owners,
+        "organization_verified" if status == VerificationStatus.VERIFIED else "organization_rejected",
+        data={"organization_name": org.legal_name, "reason": note},
+    )

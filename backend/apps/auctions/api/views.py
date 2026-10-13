@@ -84,7 +84,13 @@ class AuctionListView(APIView):
         qs = queries.catalog(request.user, params, now)
         paginator = StandardPagination()
         page = paginator.paginate_queryset(qs, request, view=self)
-        return paginator.get_paginated_response([presenters.summary(a, evaluate(a, now)) for a in page])
+        items = [presenters.summary(a, evaluate(a, now)) for a in page]
+        if params.get("organization"):  # panel de la compradora: inscripciones pendientes por subasta
+            pending = participants.pending_counts(a.pk for a in page)
+            for item in items:
+                if item["mechanism"] == "reverse":
+                    item["registrations_pending"] = pending.get(item["id"], 0)
+        return paginator.get_paginated_response(items)
 
     @extend_schema(request=AuctionCreateInput)
     def post(self, request):
@@ -308,6 +314,34 @@ class RatingView(APIView):
     def post(self, request, auction_id):
         rating = post_close.rate(request.user, auction_id, **validated(RatingInput, request.data))
         return Response({"id": str(rating.pk), "score": rating.score}, status=status.HTTP_201_CREATED)
+
+
+class ReverseQuoteView(APIView):
+    """`POST /auctions/{id}/reverse-quote/`: calcula el total con la fórmula oficial antes de ofertar.
+    No crea nada; solo para que la sala muestre exactamente lo que calculará el servidor."""
+
+    permission_classes = [HasAnyOrgCapability(OrgCap.REVERSE_REGISTER)]
+
+    @extend_schema(request=ReverseOfferInput)
+    def post(self, request, auction_id):
+        from apps.auctions.domain import registry
+
+        data = validated(ReverseOfferInput, request.data)
+        auction = queries.get_visible(request.user, auction_id)
+        if not presenters.is_reverse(auction):
+            raise Conflict(code="MECHANISM_MISMATCH", message="Esta subasta no es inversa.")
+        ev = evaluate(auction, time_source.db_now())
+        mechanism = registry.mechanism_for(ev.state)
+        total = mechanism.total_for(ev.state, data["unit_price"], data["shipping_cost"])
+        maximum = mechanism.maximum_allowed(ev.state)
+        return Response(
+            {
+                "total": f"{total:.2f}",
+                "maximum_allowed": f"{maximum:.2f}",
+                "within_maximum": total <= maximum,
+                "formula": "ROUND_HALF_UP(unit_price × quantity + shipping_cost, 2)",
+            }
+        )
 
 
 class WatchView(APIView):

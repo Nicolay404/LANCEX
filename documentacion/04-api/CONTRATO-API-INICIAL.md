@@ -135,7 +135,8 @@ Leyenda de acceso: **P** público, **A** usuario autenticado con rol `user`, **D
 | POST | `/listings/{id}/images/` | D | Confirmar `{storage_path, position}` |
 | DELETE | `/listings/{id}/images/{image_id}/` | D | Solo sin subasta publicada |
 | POST | `/procurement-requests/` | M (compradora verificada) | Crear necesidad B2B |
-| GET | `/procurement-requests/{id}/` | P | Detalle público |
+| GET | `/procurement-requests/{id}/` | P | Detalle público + `auction{id, status, starts_at, ends_at, admitted_count}` (null si no tiene subasta) |
+| GET | `/organizations/{id}/procurement-requests/` | M | Necesidades de mi organización (paginado), cada una con su `auction` |
 
 ### Subastas
 
@@ -157,7 +158,7 @@ Leyenda de acceso: **P** público, **A** usuario autenticado con rol `user`, **D
 | POST | `/auctions/{id}/participants/` | M (proveedora verificada) | Inscribirse `{organization_id, compliance: [...]}` |
 | GET | `/auctions/{id}/participants/` | D / M | Dueño: todos; proveedor: su inscripción |
 | POST | `/auctions/{id}/participants/{pid}/decision/` | D | `{status: admitted\|rejected, reason}` |
-| GET | `/auctions/{id}/result/` | P | Resultado según audiencia; materializa el cierre si está pendiente |
+| GET | `/auctions/{id}/result/` | P | Resultado según audiencia; materializa el cierre si está pendiente. Incluye `winner_pseudonym` ("Postor N"/"Tú", no en inversa: ahí `winner_organization`), `viewer{is_owner, is_winner, can_rate, my_rating}`, `settlement_status` (solo partes), `contact` (dueño, miembros de la compradora o ganador) |
 | GET | `/auctions/{id}/candle-proof/` | P | Tras el cierre: `{commitment, seed_hex, window_start, window_s, close_at}` |
 | PATCH | `/auctions/{id}/settlement/` | D | `{settlement_status, settlement_note}` |
 | POST | `/auctions/{id}/rating/` | ganador o dueño | `{score, comment}` |
@@ -171,6 +172,8 @@ Leyenda de acceso: **P** público, **A** usuario autenticado con rol `user`, **D
 | GET | `/me/participations/?tab=active\|won\|lost` | A | `/mis-pujas`: `auction_id, title, mechanism, closing_policy, status, ends_at, my_status (leading\|outbid\|offer_submitted\|offer_withdrawn\|pending_result\|won\|lost\|cancelled), current_price, my_last_bid, my_proxy_max, my_sealed_offer` (solo datos propios) |
 | GET | `/me/activity/` | sesión | Registro de mis acciones auditadas: `occurred_at, action, entity_type, auction_id, auction_title, details` (lista blanca por acción) |
 | GET | `/organizations/{id}/registrations/` | M | Inscripciones de mi organización proveedora con su subasta |
+| GET | `/organizations/{id}/opportunities/` | M (proveedora) | Inversas en inscripción o activas, **sin** las de organizaciones donde tengo conflicto; `phase (registration\|bidding)`, `my_registration` |
+| POST | `/auctions/{id}/reverse-quote/` | M (proveedora) | `{unit_price, shipping_cost}` → `{total, maximum_allowed, within_maximum, formula}`; no crea oferta |
 
 ### Reportes
 
@@ -182,8 +185,9 @@ Leyenda de acceso: **P** público, **A** usuario autenticado con rol `user`, **D
 
 | Método | Ruta | Acceso | Descripción |
 |---|---|---|---|
-| GET | `/moderation/summary/` | MOD | Contadores de la bandeja |
+| GET | `/moderation/summary/` | MOD | Contadores: `pending_organizations`, `open_reports`, `active_auctions`, `reported_active_auctions`, `suspended_users` |
 | GET | `/moderation/organizations/?status=pending` | MOD | Organizaciones por verificar |
+| GET | `/moderation/organizations/{id}/` | MOD | Datos y miembros (con email) para decidir |
 | POST | `/moderation/organizations/{id}/decision/` | MOD | `{status: verified\|rejected, note}` |
 | GET | `/moderation/reports/?status=open` | MOD | Reportes |
 | POST | `/moderation/reports/{id}/resolve/` | MOD | `{status: dismissed\|actioned, note, action: none\|cancel_auction\|suspend_user}` |

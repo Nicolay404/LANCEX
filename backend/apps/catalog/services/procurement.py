@@ -72,6 +72,42 @@ def create_request(user: User, *, organization_id, **data) -> ProcurementRequest
         )
 
 
+def list_for_organization(user, organization_id):
+    """`/org/:orgId/necesidades`: necesidades de la organización (solo miembros activos)."""
+    from apps.organizations import services as organizations
+
+    if organizations.active_membership(user, organization_id) is None:
+        raise NotFound()
+    return (
+        ProcurementRequest.objects.filter(buyer_organization_id=organization_id)
+        .select_related("buyer_organization")
+        .order_by("-created_at")
+    )
+
+
+def auction_info(need_ids) -> dict[str, dict]:
+    """Subasta asociada a cada necesidad y número de proveedores admitidos (dato público)."""
+    from django.db.models import Count, Q
+
+    from apps.auctions.models import Auction
+
+    rows = (
+        Auction.objects.filter(procurement_request_id__in=list(need_ids))
+        .annotate(admitted=Count("auctionparticipant", filter=Q(auctionparticipant__status="admitted")))
+        .values("id", "procurement_request_id", "status", "starts_at", "ends_at", "admitted")
+    )
+    return {
+        str(r["procurement_request_id"]): {
+            "id": str(r["id"]),
+            "status": r["status"],
+            "starts_at": r["starts_at"],
+            "ends_at": r["ends_at"],
+            "admitted_count": r["admitted"],
+        }
+        for r in rows
+    }
+
+
 def get_public(request_id) -> ProcurementRequest:
     obj = ProcurementRequest.objects.select_related("buyer_organization").filter(pk=request_id).first()
     if obj is None:

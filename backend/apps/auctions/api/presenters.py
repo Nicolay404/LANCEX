@@ -256,6 +256,28 @@ def participant_payload(participant, auction: Auction, now, *, full: bool) -> di
     }
 
 
+def sealed_names(auction: Auction) -> dict[str, int]:
+    names: dict[str, int] = {}
+    for bidder in (
+        SealedOffer.objects.filter(auction_id=auction.pk).order_by("seq").values_list("bidder_user_id", flat=True)
+    ):
+        names.setdefault(str(bidder), len(names) + 1)
+    return names
+
+
+def _rating_state(auction: Auction, user) -> dict:
+    """Para `/calificar`: si el espectador puede calificar y su calificación previa."""
+    from apps.auctions.models import Rating
+
+    viewer = _uid(user)
+    parties = {str(auction.owner_user_id), str(auction.winner_user_id or "")}
+    eligible = (
+        auction.outcome == "awarded" and auction.settlement_status in ("completed", "failed") and viewer in parties
+    )
+    mine = Rating.objects.filter(auction_id=auction.pk, rater_user_id=viewer).values("score", "comment").first()
+    return {"can_rate": bool(eligible and mine is None), "my_rating": mine}
+
+
 def _images(auction: Auction) -> list[dict]:
     from apps.catalog.services import images
 
@@ -455,12 +477,21 @@ def result_view(auction: Auction, ev: Effective, user) -> dict:
 
         org = Organization.objects.only("legal_name").get(pk=auction.winner_organization_id)
         data["winner_organization"] = {"id": str(org.pk), "legal_name": org.legal_name}
+    if auction.outcome == "awarded" and winner and not is_reverse(auction):
+        # Público: ganador seudonimizado ("Postor N"), nunca su identidad (PANTALLAS §2).
+        names = sealed_names(auction) if is_sealed(auction) else queries.pseudonyms(auction.pk)
+        data["winner_pseudonym"] = "Tú" if viewer == winner else f"Postor {names.get(winner, '?')}"
     if viewer:
-        data["viewer"] = {"is_owner": owner, "is_winner": viewer == winner}
+        data["viewer"] = {"is_owner": owner, "is_winner": viewer == winner, **_rating_state(auction, user)}
         if sealed_revealed(auction):
             mine = [i["rank"] for i in sealed_ranking(auction, user, _NO_CAPS) if i["bidder"] == "Tú"]
             data["viewer"]["rank"] = mine[0] if mine else None
-    # REGLAS §10: con `awarded`, dueño y ganador ven nombre y email del otro.
+    # REGLAS §10: con `awarded`, dueño y ganador ven nombre y email del otro. En la inversa, "dueño" incluye
+    # a los miembros activos de la organización compradora (ROLES §4).
+    if is_reverse(auction) and not owner and viewer:
+        from apps.organizations import services as organizations
+
+        owner = organizations.active_membership(user, auction.organization_id) is not None
     if auction.outcome == "awarded" and viewer and (owner or viewer == winner):
         from apps.accounts.models import User
 

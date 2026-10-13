@@ -184,7 +184,9 @@ class AuctionParticipant(models.Model):
     """Inscripción de una organización proveedora en una subasta inversa (REGLAS §7)."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    auction = models.ForeignKey(Auction, on_delete=models.DO_NOTHING, db_column="auction_id", related_name="+")
+    auction = models.ForeignKey(
+        Auction, on_delete=models.DO_NOTHING, db_column="auction_id", related_name="auctionparticipant"
+    )
     organization = models.ForeignKey(
         "organizations.Organization", on_delete=models.DO_NOTHING, db_column="organization_id", related_name="+"
     )
