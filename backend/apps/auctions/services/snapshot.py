@@ -24,6 +24,8 @@ def config_of(a: Auction) -> AuctionConfig:
         soft_close_window_s=a.soft_close_window_s,
         soft_close_extension_s=a.soft_close_extension_s,
         soft_close_max_total_s=a.soft_close_max_total_s,
+        candle_window_s=a.candle_window_s,
+        candle_close_at=a.candle_close_at,
         reference_budget=a.reference_budget,
         min_decrement=a.min_decrement,
         quantity=_quantity(a),

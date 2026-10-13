@@ -56,6 +56,7 @@
 | 409 | `ALREADY_MEMBER` | El usuario ya es miembro activo de la organización |
 | 409 | `ALREADY_REGISTERED` | La organización ya está inscrita en esa subasta inversa |
 | 409 | `PROCUREMENT_HAS_AUCTION` | La necesidad B2B ya tiene una subasta asociada |
+| 409 | `NOT_REVEALED_YET` | `candle-proof` pedido antes del cierre de la subasta |
 | 409 | `RULES_LOCKED` | Edición de reglas tras publicar |
 | 409 | `LISTING_LOCKED` | Edición de una publicación con subasta no terminal (`draft`, `scheduled`, `active`) |
 | 409 | `LISTING_HAS_OPEN_AUCTION` | La publicación ya tiene una subasta `draft`, `scheduled` o `active` |

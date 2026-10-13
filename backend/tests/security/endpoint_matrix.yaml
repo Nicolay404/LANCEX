@@ -183,3 +183,8 @@ endpoints:
     methods:
       POST: {visitor: 401, user: 403, buyer_member: 200, supplier_member: 403, moderator: 403, admin: 403}
     notes: "Miembro de la compradora de ESA subasta, antes de starts_at."
+
+  - route: /api/v1/auctions/{auction_id}/candle-proof/
+    methods:
+      GET: {visitor: 200, user: 200, buyer_member: 200, supplier_member: 200, moderator: 200, admin: 200}
+    notes: "Subasta de vela cerrada. Antes del cierre -> 409 NOT_REVEALED_YET; otra modalidad -> 409 MECHANISM_MISMATCH."

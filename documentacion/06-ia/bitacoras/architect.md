@@ -195,3 +195,18 @@
 - Pruebas ejecutadas y resultado real: ruff limpio; `manage.py check` sin errores; `LANCEX_REQUIRE_DB=1 pytest`: **392 passed** (fórmula con ROUND_HALF_UP, `OFFER_ABOVE_MAXIMUM` con máximo exacto aceptado, `ALREADY_LEADING` por organización, `NOT_ADMITTED`, compradora no oferta, `CONFLICT_OF_INTEREST`, `LAST_OWNER`, step-up, vuelta a `pending`, `not_reviewed`, visibilidad durante y tras el cierre, licitación desierta). Un fallo intermedio era de la prueba (nota de verificación de 2 caracteres).
 - Riesgos/bloqueos: ninguno nuevo; Supabase pendiente de la contraseña de `lancex_app`.
 - Handoff/siguiente paso: FE (LX-53), BD (LX-52). Fase 6 (vela).
+
+## 2026-10-12T20:17:21-05:00: CIERRE: Fase 6 backend (LX-60, script de LX-61)
+- Humano responsable: Nicolay.
+- Herramienta/modelo IA: Claude (claude-opus-5-5).
+- Rama y commit: `feat/architect/fase-5` (continuación autorizada) → `backend-lancex`.
+- Objetivo: cierre por vela verificable según REGLAS §5.
+- Archivos/documentos modificados: `domain/closing/candle.py` (compromiso, instante HMAC, verificación, corte retroactivo), `state.py`, `registry.py`; `services/lifecycle.py` (semilla con `secrets` al publicar; `rules_snapshot` con compromiso, nunca la semilla), `closing.py` (`counted = false` y `candle_revealed`), `snapshot.py`; presenters (`candle_info`, `candle_proof`, precio oficial tras el corte, `counted` oculto hasta el cierre), vista `CandleProofView`, serializers; `scripts/verify_candle.py`; pruebas `test_domain_candle.py`, `test_candle_flow.py`; matriz; contrato (`NOT_REVEALED_YET`); handoffs; estado.
+- Decisiones/supuestos:
+  - La ventana se ancla en `original_ends_at` (fijado al publicar) para que el instante sea reproducible.
+  - `counted` se publica como `null` mientras la subasta está abierta: un `false` revelaría el instante secreto.
+  - Tras el cierre, el precio público es `final_price` (el del ganador dentro del corte), no la última puja.
+  - La semilla se genera en el servicio; el dominio es determinista y probado sin aleatoriedad.
+- Pruebas ejecutadas y resultado real: ruff limpio; `LANCEX_REQUIRE_DB=1 pytest`: **412 passed** (instante determinista y dentro de la ventana, verificación con semilla falsa, límites, no fuga de semilla/instante en API, `rules_snapshot` y auditoría para público/dueño/admin, corte retroactivo con `counted = false`, script independiente con salida 0).
+- Riesgos/bloqueos: límite declarado en REGLAS §5 (quien accede a la base podría leer la semilla antes).
+- Handoff/siguiente paso: FE (LX-62), BD (LX-61). Fase 7.

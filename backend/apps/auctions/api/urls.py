@@ -12,6 +12,7 @@ urlpatterns = [
     path("auctions/<uuid:auction_id>/result/", views.AuctionResultView.as_view(), name="auction-result"),
     path("auctions/<uuid:auction_id>/proxy-limit/", views.ProxyLimitView.as_view(), name="auction-proxy-limit"),
     path("auctions/<uuid:auction_id>/watch/", views.WatchView.as_view(), name="auction-watch"),
+    path("auctions/<uuid:auction_id>/candle-proof/", views.CandleProofView.as_view(), name="auction-candle-proof"),
     path("auctions/<uuid:auction_id>/participants/", views.ParticipantsView.as_view(), name="auction-participants"),
     path(
         "auctions/<uuid:auction_id>/participants/<uuid:participant_id>/decision/",

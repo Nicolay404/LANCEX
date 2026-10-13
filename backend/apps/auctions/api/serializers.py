@@ -45,6 +45,7 @@ class AuctionCreateInput(StrictInputMixin, serializers.Serializer):
     soft_close_window_s = serializers.IntegerField(required=False, allow_null=True)
     soft_close_extension_s = serializers.IntegerField(required=False, allow_null=True)
     soft_close_max_total_s = serializers.IntegerField(required=False, allow_null=True)
+    candle_window_s = serializers.IntegerField(required=False, allow_null=True)
 
 
 class AuctionUpdateInput(StrictInputMixin, serializers.Serializer):
@@ -58,6 +59,7 @@ class AuctionUpdateInput(StrictInputMixin, serializers.Serializer):
     soft_close_window_s = serializers.IntegerField(required=False, allow_null=True)
     soft_close_extension_s = serializers.IntegerField(required=False, allow_null=True)
     soft_close_max_total_s = serializers.IntegerField(required=False, allow_null=True)
+    candle_window_s = serializers.IntegerField(required=False, allow_null=True)
     title = serializers.CharField(max_length=120, required=False)
     description = serializers.CharField(max_length=5000, required=False)
 

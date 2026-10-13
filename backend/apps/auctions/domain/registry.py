@@ -8,6 +8,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from apps.auctions.domain import errors
+from apps.auctions.domain.closing.candle import Candle
 from apps.auctions.domain.closing.fixed import Fixed
 from apps.auctions.domain.closing.soft_close import SoftClose
 from apps.auctions.domain.mechanisms.ascending import Ascending
@@ -24,9 +25,9 @@ COMPATIBILITY: dict[str, tuple[frozenset[str], bool]] = {
     "sealed": (frozenset({"fixed"}), False),
 }
 
-# Implementados hasta ahora (Fase 5). La vela llega en la Fase 6 (PLAN-DE-DESARROLLO.md).
+# Todas las modalidades de REGLAS-DE-SUBASTAS.md (Fase 6 completa el registro).
 MECHANISMS: dict[str, Mechanism] = {"ascending": Ascending(), "sealed": SealedFirstPrice(), "reverse": Reverse()}
-CLOSING_POLICIES: dict[str, ClosingPolicy] = {"fixed": Fixed(), "soft_close": SoftClose()}
+CLOSING_POLICIES: dict[str, ClosingPolicy] = {"fixed": Fixed(), "soft_close": SoftClose(), "candle": Candle()}
 PROXY_AVAILABLE = True
 SOFT_CLOSE_FIELDS = ("soft_close_window_s", "soft_close_extension_s", "soft_close_max_total_s")
 
@@ -81,4 +82,8 @@ def validate_config(cfg: AuctionConfig) -> None:
         CLOSING_POLICIES["soft_close"].validate_config(cfg)
     elif any(getattr(cfg, f) is not None for f in SOFT_CLOSE_FIELDS):
         raise errors.config_error("closing_policy", "Los parámetros de soft close solo aplican a soft_close.")
+    if cfg.closing_policy == "candle":
+        CLOSING_POLICIES["candle"].validate_config(cfg)
+    elif cfg.candle_window_s is not None:
+        raise errors.config_error("closing_policy", "`candle_window_s` solo aplica al cierre por vela.")
     validate_schedule(cfg.starts_at, cfg.ends_at)

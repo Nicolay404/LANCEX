@@ -60,6 +60,8 @@ def close_auction(auction_id, *, skip_locked: bool = False) -> CloseResult:
         result = registry.mechanism_for(state).select_winner(state, valid)
         if auction.mechanism == "sealed":
             _reveal_sealed_offers(auction, now)
+        if auction.closing_policy == "candle":
+            _reveal_candle(auction, records, valid)
 
         auction.status = Status.CLOSED
         auction.outcome = result.outcome
@@ -116,9 +118,10 @@ def _result_records(auction: Auction) -> list[BidRecord]:
             amount=b.amount,
             counted=b.counted,
             organization_id=str(b.organization_id) if b.organization_id else None,
+            accepted_at=b.accepted_at,
         )
         for b in Bid.objects.filter(auction_id=auction.pk).only(
-            "seq", "bidder_user_id", "amount", "counted", "organization_id"
+            "seq", "bidder_user_id", "amount", "counted", "organization_id", "accepted_at"
         )
     ]
 
@@ -133,6 +136,26 @@ def _reveal_sealed_offers(auction: Auction, now) -> None:
         entity_id=auction.pk,
         auction_id=auction.pk,
         data={"offers": revealed, "participants": auction.active_offer_count},
+    )
+
+
+def _reveal_candle(auction: Auction, records: list[BidRecord], valid: list[BidRecord]) -> None:
+    """Las pujas posteriores al instante secreto quedan en el libro con `counted = false` (REGLAS §5)."""
+    late = sorted({r.seq for r in records} - {r.seq for r in valid})
+    if late:
+        Bid.objects.filter(auction_id=auction.pk, seq__in=late).update(counted=False)
+    record(
+        "candle_revealed",
+        actor_user_id=None,
+        entity_type="auction",
+        entity_id=auction.pk,
+        auction_id=auction.pk,
+        data={
+            "commitment": auction.candle_commitment,
+            "seed_hex": bytes(auction.candle_seed).hex(),
+            "close_at": auction.candle_close_at.isoformat(),
+            "uncounted_bids": len(late),
+        },
     )
 
 

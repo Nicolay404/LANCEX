@@ -9,6 +9,15 @@
 
 ## Handoffs activos
 
+- Fecha/hora: 2026-10-12T20:17:21-05:00
+- Issue/PR: LX-60 (Fase 6, vela; rama `backend-lancex`)
+- Para rol: Frontend (LX-62)
+- Estado: listo para consumir
+- Contexto: `closing_policy: candle` (solo ascendente, admite proxy) con `candle_window_s` 300–3600 (por defecto 600, no mayor que la subasta).
+- Archivos, tablas o endpoints afectados: detalle con `candle` = `{window_start, window_s, commitment, in_window, price_is_provisional, notice, close_at}` (`close_at` solo tras el cierre); `GET /auctions/{id}/candle-proof/` -> `{auction_id, commitment, seed_hex, window_start, window_s, close_at, algorithm}` tras el cierre (`409 NOT_REVEALED_YET` antes). Historial: `counted` es `null` mientras está abierta y `true/false` tras el cierre.
+- Acción requerida: indicador de fase de vela con el aviso `notice`; precio "provisional" en la ventana; pantalla de verificación con los datos de `candle-proof` (se pueden comprobar con `scripts/verify_candle.py`).
+- Cómo validar: `tests/auctions/test_candle_flow.py`.
+
 - Fecha/hora: 2026-10-12T20:13:16-05:00
 - Issue/PR: LX-50, LX-51, LX-54 (Fase 5, B2B; rama `backend-lancex`)
 - Para rol: Frontend (LX-53)

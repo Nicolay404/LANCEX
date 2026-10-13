@@ -111,13 +111,13 @@ class TestConfig:
         assert code == "MECHANISM_COMBINATION_NOT_ALLOWED"
 
     @pytest.mark.parametrize(
-        "changes",
-        [
-            {"closing_policy": "candle"},  # Fase 6
-        ],
+        ("mechanism", "policies", "proxy_ok"),
+        [(m, sorted(p), ok) for m, (p, ok) in registry.COMPATIBILITY.items()],
     )
-    def test_not_yet_available_in_this_phase(self, changes):
-        assert code_of(registry.validate_config, cfg(**changes)) == "VALIDATION_ERROR"
+    def test_every_valid_combination_of_the_matrix_is_implemented(self, mechanism, policies, proxy_ok):
+        """ADR-0005: con la Fase 6, todas las combinaciones permitidas tienen Strategy registrada."""
+        for policy in policies:
+            registry.check_available(mechanism, policy, proxy_ok)
 
     @pytest.mark.parametrize(
         ("changes", "field"),

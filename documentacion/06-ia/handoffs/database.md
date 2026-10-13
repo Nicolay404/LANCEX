@@ -11,6 +11,15 @@
 
 ## Handoffs activos
 
+- Fecha/hora: 2026-10-12T20:17:21-05:00
+- Issue/PR: LX-61 (verificación de vela, QA-07)
+- Para rol: Base de datos
+- Estado: listo para consumir
+- Contexto: `scripts/verify_candle.py` (solo biblioteca estándar) ya existe y una prueba lo ejecuta contra una subasta real cerrada. El cierre marca `counted = false` en las pujas posteriores al instante (único UPDATE permitido sobre `bid`).
+- Archivos, tablas o endpoints afectados: `auction.candle_*`, `bid.counted`, `audit_event` (`candle_revealed` con semilla y compromiso tras el cierre).
+- Acción requerida: LX-61 completar QA-07 (recalcular el resultado desde `bid` con el corte y compararlo con `auction`). Sin cambios de esquema.
+- Cómo validar: `LANCEX_REQUIRE_DB=1 python -m pytest tests/auctions/test_candle_flow.py -q`.
+
 - Fecha/hora: 2026-10-12T20:13:16-05:00
 - Issue/PR: LX-52 (pruebas B2B)
 - Para rol: Base de datos

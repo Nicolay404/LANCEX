@@ -13,7 +13,7 @@ from rest_framework.views import APIView
 from apps.auctions.services import bidding, closing, lifecycle, participants, queries, sealed
 from apps.auctions.services.snapshot import evaluate
 from apps.core.capabilities import Cap, OrgCap
-from apps.core.errors import ValidationFailed
+from apps.core.errors import Conflict, ValidationFailed
 from apps.core.pagination import StandardPagination
 from apps.core.permissions import ByMethod, HasAnyOrgCapability, HasCapability, Public, get_capabilities
 from apps.core.time import time_source
@@ -252,6 +252,20 @@ class ParticipantDecisionView(APIView):
         auction, items, _ = participants.visible_participants(request.user, auction_id)
         decided = next(p for p in items if str(p.pk) == str(participant_id))
         return Response(presenters.participant_payload(decided, auction, time_source.db_now(), full=True))
+
+
+class CandleProofView(APIView):
+    """`GET /auctions/{id}/candle-proof/`: solo tras el cierre materializado (REGLAS §5)."""
+
+    permission_classes = [Public]
+
+    def get(self, request, auction_id):
+        auction = queries.get_visible(request.user, auction_id)
+        if auction.closing_policy != "candle":
+            raise Conflict(code="MECHANISM_MISMATCH", message="Esta subasta no cierra por vela.")
+        if not presenters.candle_revealed(auction):
+            raise Conflict(code="NOT_REVEALED_YET", message="La semilla se revela al cierre.")
+        return Response(presenters.candle_proof(auction))
 
 
 class WatchView(APIView):

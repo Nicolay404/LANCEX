@@ -5,6 +5,7 @@ Cada caso de uso revalida dueño, capacidad y estado (ADR-0006) y audita en la m
 
 from __future__ import annotations
 
+import secrets
 from typing import Any
 
 from django.db import IntegrityError, transaction
@@ -13,6 +14,8 @@ from django.db.models import F
 from apps.accounts.models import User
 from apps.auctions.domain import errors as domain_errors
 from apps.auctions.domain import registry
+from apps.auctions.domain.closing import candle as candle_domain
+from apps.auctions.domain.closing.candle import Candle
 from apps.auctions.domain.closing.soft_close import SoftClose
 from apps.auctions.domain.money import to_str
 from apps.auctions.domain.state import OPEN, AuctionConfig, Status
@@ -43,6 +46,7 @@ RULE_FIELDS = (
     "soft_close_max_total_s",
     "reference_budget",
     "min_decrement",
+    "candle_window_s",
 )
 TEXT_FIELDS = ("title", "description")  # se corrigen en la publicación mientras está `scheduled`
 
@@ -69,11 +73,16 @@ def _config_from(data: dict[str, Any], base: AuctionConfig | None = None) -> Auc
     values = {f: getattr(base, f) for f in (*RULE_FIELDS, "quantity", "buyer_organization_id")} if base else {}
     values.update({k: v for k, v in data.items() if k in RULE_FIELDS})
     values.setdefault("proxy_enabled", False)
-    if values.get("closing_policy") == "soft_close":
+    policy = values.get("closing_policy")
+    if policy == "soft_close":
         SoftClose.with_defaults(values)
     elif "closing_policy" in data:  # al cambiar a otra política se limpian sus parámetros
         for field in registry.SOFT_CLOSE_FIELDS:
             values[field] = None
+    if policy == "candle":
+        Candle.with_defaults(values)
+    elif "closing_policy" in data:
+        values["candle_window_s"] = None
     return AuctionConfig(**values)
 
 
@@ -236,6 +245,7 @@ def publish(user: User, auction_id) -> Auction:
 
         auction.status = Status.SCHEDULED
         auction.original_ends_at = auction.ends_at
+        candle_fields = _arm_candle(auction, config) if config.closing_policy == "candle" else []
         auction.published_at = now
         auction.rules_snapshot = {
             "mechanism": config.mechanism,
@@ -252,10 +262,20 @@ def publish(user: User, auction_id) -> Auction:
             "reference_budget": to_str(config.reference_budget),
             "min_decrement": to_str(config.min_decrement),
             "quantity": None if config.quantity is None else f"{config.quantity:.3f}",
+            "candle_window_s": config.candle_window_s,
+            "candle_commitment": auction.candle_commitment,  # público; la semilla nunca va aquí
         }
         auction.version += 1
         auction.save(
-            update_fields=["status", "starts_at", "original_ends_at", "published_at", "rules_snapshot", "version"]
+            update_fields=[
+                "status",
+                "starts_at",
+                "original_ends_at",
+                "published_at",
+                "rules_snapshot",
+                "version",
+                *candle_fields,
+            ]
         )
         record(
             "auction_published",
@@ -266,6 +286,16 @@ def publish(user: User, auction_id) -> Auction:
             data={"starts_at": config.starts_at.isoformat(), "ends_at": config.ends_at.isoformat()},
         )
     return auction
+
+
+def _arm_candle(auction: Auction, config: AuctionConfig) -> list[str]:
+    """Commit-reveal (REGLAS §5): semilla secreta, compromiso público e instante secreto, fijados al publicar."""
+    seed = secrets.token_bytes(candle_domain.SEED_BYTES)
+    window_start = candle_domain.window_start_of(auction.ends_at, config.candle_window_s)
+    auction.candle_seed = seed
+    auction.candle_commitment = candle_domain.commitment_of(seed)
+    auction.candle_close_at = candle_domain.close_instant(seed, auction.pk, window_start, config.candle_window_s)
+    return ["candle_seed", "candle_commitment", "candle_close_at"]
 
 
 def cancel_by_owner(user: User, auction_id, *, reason: str) -> Auction:

@@ -48,6 +48,9 @@ class AuctionConfig:
     soft_close_window_s: int | None = None
     soft_close_extension_s: int | None = None
     soft_close_max_total_s: int | None = None
+    # Vela (candle_close_at es PRIVADO hasta el cierre: solo lo usa el dominio al cerrar)
+    candle_window_s: int | None = None
+    candle_close_at: datetime | None = None
     # Inversa B2B
     reference_budget: Decimal | None = None
     min_decrement: Decimal | None = None
@@ -127,6 +130,7 @@ class BidRecord:
     amount: Decimal
     counted: bool = True
     organization_id: str | None = None
+    accepted_at: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True)

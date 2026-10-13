@@ -51,8 +51,15 @@ def sealed_revealed(auction: Auction) -> bool:
     return is_sealed(auction) and auction.status == Status.CLOSED
 
 
+def candle_revealed(auction: Auction) -> bool:
+    return auction.closing_policy == "candle" and auction.status == Status.CLOSED
+
+
 def _counters(auction: Auction) -> dict:
     """Única fuente de precio y contadores visibles (canales laterales, T07)."""
+    if candle_revealed(auction):
+        # Tras el corte retroactivo, el precio oficial es el del ganador, no la última puja.
+        return {"current_price": auction.final_price, "bid_count": auction.bid_count, "active_offer_count": None}
     if not is_sealed(auction):
         return {"current_price": auction.current_price, "bid_count": auction.bid_count, "active_offer_count": None}
     return {
@@ -147,7 +154,7 @@ def detail(auction: Auction, ev: Effective, now: datetime, user, caps: Capabilit
         "min_increment": to_str(auction.min_increment),
         **reserve_info(auction),
         "soft_close": _soft_close(auction),
-        "candle": None,  # Fase 6
+        "candle": candle_info(auction, now),
         "server_time": now,
         "version": auction.version,
     }
@@ -166,6 +173,42 @@ def detail(auction: Auction, ev: Effective, now: datetime, user, caps: Capabilit
             "my_sealed_offer": _my_sealed_offer(auction, user),  # solo la oferta PROPIA
         }
     return data
+
+
+def candle_info(auction: Auction, now) -> dict | None:
+    """Público: compromiso y ventana. El instante y la semilla solo tras el cierre materializado."""
+    if auction.closing_policy != "candle" or auction.candle_window_s is None or auction.ends_at is None:
+        return None
+    from apps.auctions.domain.closing.candle import window_start_of
+
+    window_start = window_start_of(auction.original_ends_at or auction.ends_at, auction.candle_window_s)
+    in_window = auction.status != Status.CLOSED and window_start <= now < auction.ends_at
+    info = {
+        "window_start": window_start,
+        "window_s": auction.candle_window_s,
+        "commitment": auction.candle_commitment,
+        "in_window": in_window,
+        "price_is_provisional": in_window,
+        "notice": "La subasta pudo haber terminado ya: el instante real se revela al cierre." if in_window else None,
+        "close_at": None,
+    }
+    if candle_revealed(auction):
+        info["close_at"] = auction.candle_close_at
+    return info
+
+
+def candle_proof(auction: Auction) -> dict:
+    from apps.auctions.domain.closing.candle import window_start_of
+
+    return {
+        "auction_id": str(auction.pk),
+        "commitment": auction.candle_commitment,
+        "seed_hex": bytes(auction.candle_seed).hex(),
+        "window_start": window_start_of(auction.original_ends_at or auction.ends_at, auction.candle_window_s),
+        "window_s": auction.candle_window_s,
+        "close_at": auction.candle_close_at,
+        "algorithm": "offset_ms = int(HMAC-SHA256(seed, auction_id.bytes)[:8]) % (window_s*1000)",
+    }
 
 
 def _reverse_info(auction: Auction) -> dict:
@@ -356,6 +399,8 @@ def bid_history(bids, auction: Auction, ev: Effective, user, caps: CapabilitySet
             "source": bid.source,
             "accepted_at": bid.accepted_at,
             "bidder": "Tú" if bidder == viewer else f"Postor {names.get(bidder, '?')}",
+            # En vela, `counted` solo es informativo tras el cierre (antes revelaría el instante secreto).
+            "counted": bid.counted if candle_revealed(auction) or auction.closing_policy != "candle" else None,
         }
         if reveal:
             item["bidder_identity"] = {"id": bidder, "display_name": bid.bidder_user.display_name}
