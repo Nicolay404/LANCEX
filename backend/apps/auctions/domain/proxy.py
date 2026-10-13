@@ -101,10 +101,10 @@ class ProxyBidding:
                 exhausted.append(leader)
             price = min(cc, m_leader + inc) if intent.is_proxy else cc
             bids.append(NewBid(challenger, price, source))
-            return BidOutcome(tuple(bids), price, challenger, tuple(exhausted))
+            return BidOutcome(tuple(bids), price, challenger, exhausted_proxy_user_ids=tuple(exhausted))
 
         # cc ≤ M_L (solo posible si el líder tiene proxy): el líder responde y sigue ganando.
         price = min(m_leader, cc + inc)
         bids = (NewBid(challenger, cc, source), NewBid(leader, price, "proxy"))
         exhausted = (challenger,) if intent.is_proxy else ()
-        return BidOutcome(bids, price, leader, exhausted)
+        return BidOutcome(bids, price, leader, exhausted_proxy_user_ids=exhausted)
