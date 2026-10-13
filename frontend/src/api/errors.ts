@@ -41,6 +41,17 @@ export const API_ERROR_CODES = [
   'EMAIL_ALREADY_REGISTERED',
   'RATE_LIMITED',
   'INTERNAL_ERROR',
+  // Códigos agregados al contrato en las fases 4 a 7 (handoffs de backend).
+  'MECHANISM_MISMATCH',
+  'NOT_REVEALED_YET',
+  'RUC_ALREADY_REGISTERED',
+  'ALREADY_MEMBER',
+  'ALREADY_REGISTERED',
+  'PROCUREMENT_HAS_AUCTION',
+  'ALREADY_RATED',
+  'OPEN_ACTIVITY',
+  'SLUG_ALREADY_EXISTS',
+  'STORAGE_UNAVAILABLE',
 ] as const
 
 /** Códigos que genera el propio cliente cuando no hay respuesta válida del servidor. */

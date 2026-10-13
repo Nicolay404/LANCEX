@@ -38,7 +38,8 @@ export default tseslint.config(
     },
   },
   {
-    files: ['src/components/ui/**/*.{ts,tsx}'],
+    // Componentes shadcn y la tabla de rutas (declara componentes lazy) no necesitan fast refresh.
+    files: ['src/components/ui/**/*.{ts,tsx}', 'src/app/buildRoutes.tsx'],
     rules: { 'react-refresh/only-export-components': 'off' },
   },
 )

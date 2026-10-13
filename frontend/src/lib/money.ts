@@ -17,3 +17,24 @@ export function formatMoney(value: Money | null | undefined): string {
   if (!isMoneyString(value)) return '—'
   return usd.format(Number(value))
 }
+
+const AMOUNT_RE = /^\d{1,10}(\.\d{1,2})?$/
+
+/** Importe escrito por el usuario: solo dígitos y hasta 2 decimales (el backend revalida). */
+export function isValidAmountInput(value: string): boolean {
+  return AMOUNT_RE.test(value.trim())
+}
+
+/** `"12.5"` → `1250n`. Comparaciones de dinero sin flotantes (solo para UX). */
+export function toCents(value: Money): bigint {
+  const [int = '0', dec = ''] = value.trim().split('.')
+  return BigInt(int) * 100n + BigInt((dec + '00').slice(0, 2))
+}
+
+/** Normaliza a 2 decimales: `"140"` → `"140.00"`. */
+export function normalizeAmount(value: string): Money {
+  const cents = toCents(value)
+  const int = cents / 100n
+  const dec = (cents % 100n).toString().padStart(2, '0')
+  return `${int}.${dec}`
+}

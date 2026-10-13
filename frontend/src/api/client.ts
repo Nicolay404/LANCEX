@@ -64,6 +64,17 @@ export function newIdempotencyKey(): string {
   return crypto.randomUUID()
 }
 
+// --- Observadores de respuesta ---------------------------------------------------------
+
+type ResponseObserver = (res: Response) => void
+const responseObservers = new Set<ResponseObserver>()
+
+/** Permite a otros módulos leer cabeceras (p. ej. `Date` para el reloj del servidor). */
+export function onApiResponse(observer: ResponseObserver): () => void {
+  responseObservers.add(observer)
+  return () => responseObservers.delete(observer)
+}
+
 // --- CSRF -------------------------------------------------------------------------------
 
 let csrfInFlight: Promise<void> | null = null
@@ -101,11 +112,13 @@ async function ensureCsrfToken(): Promise<string> {
 
 async function rawFetch(url: string, init: RequestInit): Promise<Response> {
   try {
-    return await fetch(url, {
+    const res = await fetch(url, {
       ...init,
       credentials: 'same-origin',
       cache: 'no-store',
     })
+    for (const observer of responseObservers) observer(res)
+    return res
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') throw err
     throw new ApiError({
