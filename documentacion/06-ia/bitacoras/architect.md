@@ -228,3 +228,26 @@
 - Pruebas ejecutadas y resultado real: ruff limpio; `manage.py check` sin errores; `LANCEX_REQUIRE_DB=1 pytest`: **445 passed**; `seed_demo` sobre una base recién creada: 5 subastas (ascendente fija, proxy + soft close, sellada, vela, inversa) y 6 usuarios; segunda ejecución sin duplicados.
 - Riesgos/bloqueos: Storage real no probado (sin bucket ni claves); notificación al reportante pendiente de decisión; QA-05 (desempeño) no medido.
 - Handoff/siguiente paso: PR `backend-lancex` → `main`; humano: contraseña `lancex_app`, bucket `listing-images`, claves de Storage.
+
+## 2026-10-12T23:23:03-05:00: INICIO: pendientes de Frontend + pantallas sin endpoint + cuenta y actividad
+- Humano responsable: Nicolay.
+- Herramienta/modelo IA: Claude (claude-opus-5-5).
+- Rama y commit: `feat/architect/cuenta-y-actividad` desde `main` @ `3a43bdc` (incluye el frontend de LX-07..LX-42).
+- Objetivo: resolver los 3 handoffs de Frontend (`GET /listings/`, `listing_id` en el detalle, `title` en notificaciones), cubrir las pantallas de PANTALLAS-Y-NAVEGACION sin endpoint (/panel, /mis-pujas, perfil público con subastas, panel de organización, inscripciones) y lo pedido por el humano (perfil configurable, registro de actividad, sesiones, resumen de operaciones).
+
+## 2026-10-12T23:30:01-05:00: CIERRE: pendientes de Frontend + cuenta y actividad
+- Humano responsable: Nicolay.
+- Herramienta/modelo IA: Claude (claude-opus-5-5).
+- Rama y commit: `feat/architect/cuenta-y-actividad` (desde `main` @ `3a43bdc`) → `backend-lancex`.
+- Objetivo: ver INICIO de esta tarea.
+- Archivos/documentos modificados: `supabase/migrations/20261012230000_perfil_usuario.sql` (nueva); `accounts` (modelo `bio`/`location_city`, validación, servicios de perfil y sesiones, vistas `SessionsView`, `RevokeOtherSessionsView`, perfil público ampliado); `auctions/services/{my_activity,queries,bidding,closing,lifecycle,participants,post_close}.py`; `auctions/api/{me_views,presenters,views,urls}.py`; `catalog` (`GET /listings/`, `listing_overview`, `first_images`); pruebas `test_account_and_activity.py`; matriz; contrato; modelo de datos; handoffs Backend (cerrado), Frontend y BD; estado compartido.
+- Decisiones/supuestos:
+  - "Saldo": LANCEX no procesa pagos ni custodia dinero (REGLAS §10, VISION). Se implementa un resumen INFORMATIVO de operaciones con aviso explícito; un monedero real requeriría una ADR nueva y cambio de alcance (pendiente de decisión humana).
+  - `listing_id` público en el detalle (dato no sensible; la publicación ya es pública por la subasta).
+  - Registro de actividad desde `audit_event` con lista blanca de claves por acción (no expone datos de terceros).
+  - Sesiones: id derivado por hash; la clave de sesión nunca sale.
+  - `?organization=` solo para miembros (404 al resto); `?seller=` nunca muestra borradores.
+  - `watchers_count` solo para dueño/staff.
+- Pruebas ejecutadas y resultado real: backend `ruff` limpio, `check` sin errores, `LANCEX_REQUIRE_DB=1 pytest` **458 passed**; frontend `typecheck` y `lint` sin errores, `vitest` **140 passed**; humo real con Vite (`:5173`) + Django (`:8000`) sobre `lancex_dev` con `seed_demo`: SPA 200, catálogo con 5 modalidades por el proxy, login sin CSRF -> `CSRF_FAILED`, con CSRF -> 200, `GET /listings/`, `listing_id`, `PATCH /auth/me/` (bio/ciudad), `/me/summary/`, `/me/activity/`, `/auth/sessions/` correctos.
+- Riesgos/bloqueos: hasta aplicar la migración nueva en Supabase, el backend contra Supabase falla al leer usuarios (handoff BD bloqueante). Storage sin configurar (imágenes 503).
+- Handoff/siguiente paso: BD aplica la migración; FE conecta las pantallas nuevas.

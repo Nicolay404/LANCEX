@@ -21,7 +21,13 @@ from apps.core.errors import AuthenticationRequired, Conflict, Forbidden, RateLi
 from apps.organizations.models import OrganizationMembership
 
 from . import lockout
-from .validation import check_password_strength, clean_display_name, normalize_email
+from .validation import (
+    check_password_strength,
+    clean_bio,
+    clean_city,
+    clean_display_name,
+    normalize_email,
+)
 
 security_logger = logging.getLogger("lancex.security")
 
@@ -79,10 +85,45 @@ def logout(request) -> None:
     django_logout(_http(request))  # borra la fila de sesión en el servidor
 
 
-def update_profile(user: User, *, display_name: str) -> User:
-    user.display_name = clean_display_name(display_name)
-    user.save(update_fields=["display_name"])
+def update_profile(user: User, **changes) -> User:
+    """Perfil configurable: nombre visible, presentación y ciudad (PATCH parcial)."""
+    fields = []
+    if "display_name" in changes:
+        user.display_name = clean_display_name(changes["display_name"])
+        fields.append("display_name")
+    if "bio" in changes:
+        user.bio = clean_bio(changes["bio"])
+        fields.append("bio")
+    if "location_city" in changes:
+        user.location_city = clean_city(changes["location_city"])
+        fields.append("location_city")
+    if fields:
+        user.save(update_fields=fields)
     return user
+
+
+def sessions_of(request, user: User) -> list[dict]:
+    """Sesiones activas del usuario. Nunca se expone la clave de sesión: solo un id derivado (hash)."""
+    import hashlib
+
+    from apps.accounts.models import UserSession
+    from apps.core.time import time_source
+
+    current = _http(request).session.session_key
+    now = time_source.db_now()
+    return [
+        {
+            "id": hashlib.sha256(s.session_key.encode()).hexdigest()[:16],
+            "is_current": s.session_key == current,
+            "expires_at": s.expire_date,
+        }
+        for s in UserSession.objects.filter(user_id=user.pk, expire_date__gt=now).order_by("-expire_date")
+    ]
+
+
+def revoke_other_sessions(request, user: User) -> int:
+    """ "Cerrar sesión en los demás dispositivos" (T12)."""
+    return revoke_all_sessions(user.pk, except_session_key=_http(request).session.session_key)
 
 
 def change_password(request, user: User, *, current_password: str, new_password: str) -> None:

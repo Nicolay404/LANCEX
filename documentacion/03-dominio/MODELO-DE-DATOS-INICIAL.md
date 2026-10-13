@@ -53,6 +53,8 @@ erDiagram
 | `status_reason` | varchar(300) | NULL; motivo de la última suspensión o reactivación |
 | `status_changed_at` / `status_changed_by` | timestamptz / uuid | NULL |
 | `last_login` | timestamptz | NULL |
+| `bio` | varchar(300) | NULL; presentación pública opcional, sin URLs (migración `20261012230000_perfil_usuario.sql`) |
+| `location_city` | varchar(80) | NULL; ciudad pública opcional (misma migración) |
 | `created_at` | timestamptz | DEFAULT now() |
 
 ### `django_session`

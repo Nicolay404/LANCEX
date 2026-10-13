@@ -20,7 +20,9 @@ class LoginInput(StrictInputMixin, serializers.Serializer):
 
 
 class ProfileUpdateInput(StrictInputMixin, serializers.Serializer):
-    display_name = serializers.CharField(max_length=60)
+    display_name = serializers.CharField(max_length=60, required=False)
+    bio = serializers.CharField(max_length=300, required=False, allow_blank=True, allow_null=True)
+    location_city = serializers.CharField(max_length=80, required=False, allow_blank=True, allow_null=True)
 
 
 class PasswordChangeInput(StrictInputMixin, serializers.Serializer):
@@ -45,6 +47,8 @@ class UserMeSerializer(serializers.Serializer):
     id = serializers.UUIDField()
     email = serializers.EmailField()
     display_name = serializers.CharField()
+    bio = serializers.CharField(allow_null=True)
+    location_city = serializers.CharField(allow_null=True)
     platform_role = serializers.CharField()
     capabilities = serializers.ListField(child=serializers.CharField())
     organizations = UserMeOrganizationSerializer(many=True)
@@ -69,6 +73,8 @@ def build_user_me(user, capabilities: CapabilitySet, memberships, server_time) -
             "id": user.pk,
             "email": user.email,
             "display_name": user.display_name,
+            "bio": user.bio,
+            "location_city": user.location_city,
             "platform_role": user.platform_role,
             "capabilities": sorted(capabilities.global_caps),
             "organizations": organizations,

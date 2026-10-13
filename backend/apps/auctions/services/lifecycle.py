@@ -334,4 +334,8 @@ def notify_cancelled(auction: Auction, *, reason: str) -> None:
     bidders = Bid.objects.filter(auction_id=auction.pk).values_list("bidder_user_id", flat=True).distinct()
     recipients = {str(u) for u in bidders} | set(notifications.watchers_of(auction.pk))
     recipients.discard(str(auction.owner_user_id))
-    notifications.notify(recipients, "auction_cancelled", auction_id=auction.pk, data={"reason": reason})
+    from .queries import title_of
+
+    notifications.notify(
+        recipients, "auction_cancelled", auction_id=auction.pk, data={"reason": reason, "title": title_of(auction)}
+    )

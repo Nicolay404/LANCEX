@@ -86,8 +86,9 @@ class MeView(APIView):
 
     @extend_schema(request=ProfileUpdateInput, responses={200: UserMeSerializer})
     def patch(self, request):
-        data = _valid(ProfileUpdateInput, request)
-        user = services.update_profile(request.user, **data)
+        serializer = ProfileUpdateInput(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        user = services.update_profile(request.user, **serializer.validated_data)
         return user_me_response(user)
 
 
@@ -111,7 +112,7 @@ class PublicProfileView(APIView):
         from apps.auctions.services import queries
         from apps.core.errors import NotFound
 
-        user = User.objects.filter(pk=user_id).only("id", "display_name", "created_at").first()
+        user = User.objects.filter(pk=user_id).only("id", "display_name", "created_at", "bio", "location_city").first()
         if user is None:
             raise NotFound()
         rating_avg, rating_count = queries.reputation(user.pk)
@@ -119,11 +120,32 @@ class PublicProfileView(APIView):
             {
                 "id": str(user.pk),
                 "display_name": user.display_name,
+                "bio": user.bio,
+                "location_city": user.location_city,
                 "rating_avg": rating_avg,
                 "rating_count": rating_count,
                 "member_since": user.created_at,
             }
         )
+
+
+class SessionsView(APIView):
+    """`GET /auth/sessions/`: mis sesiones activas (sin claves). Seguridad de la cuenta (T12)."""
+
+    permission_classes = [HasCapability(Cap.ACCOUNT_MANAGE_OWN)]
+
+    def get(self, request):
+        return Response({"results": services.sessions_of(request, request.user)})
+
+
+class RevokeOtherSessionsView(APIView):
+    """`POST /auth/sessions/revoke-others/`: cierra la sesión en los demás dispositivos."""
+
+    permission_classes = [HasCapability(Cap.ACCOUNT_MANAGE_OWN)]
+
+    @extend_schema(request=None)
+    def post(self, request):
+        return Response({"revoked": services.revoke_other_sessions(request, request.user)})
 
 
 def _valid(serializer_class, request) -> dict:

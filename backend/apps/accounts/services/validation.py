@@ -30,6 +30,26 @@ def clean_display_name(value: str) -> str:
     return name
 
 
+def clean_bio(value: str | None) -> str | None:
+    if value is None or not value.strip():
+        return None
+    bio = " ".join(value.split())
+    if len(bio) > 300:
+        raise _field_error("bio", "Máximo 300 caracteres.")
+    if _URL_LIKE.search(bio):
+        raise _field_error("bio", "No puede contener direcciones web.")
+    return bio
+
+
+def clean_city(value: str | None) -> str | None:
+    if value is None or not value.strip():
+        return None
+    city = " ".join(value.split())
+    if not 2 <= len(city) <= 80:
+        raise _field_error("location_city", "Entre 2 y 80 caracteres.")
+    return city
+
+
 def check_password_strength(password: str, user, field: str = "password") -> None:
     try:
         validate_password(password, user)

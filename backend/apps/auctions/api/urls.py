@@ -1,8 +1,16 @@
 from django.urls import path
 
-from . import views
+from . import me_views, views
 
 urlpatterns = [
+    path("me/summary/", me_views.MySummaryView.as_view(), name="me-summary"),
+    path("me/participations/", me_views.MyParticipationsView.as_view(), name="me-participations"),
+    path("me/activity/", me_views.MyActivityView.as_view(), name="me-activity"),
+    path(
+        "organizations/<uuid:organization_id>/registrations/",
+        me_views.OrganizationRegistrationsView.as_view(),
+        name="organization-registrations",
+    ),
     path("auctions/", views.AuctionListView.as_view(), name="auctions"),
     path("auctions/<uuid:auction_id>/", views.AuctionDetailView.as_view(), name="auction-detail"),
     path("auctions/<uuid:auction_id>/publish/", views.AuctionPublishView.as_view(), name="auction-publish"),

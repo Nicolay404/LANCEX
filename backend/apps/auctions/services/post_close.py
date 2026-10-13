@@ -15,6 +15,7 @@ from apps.core.errors import Conflict, Forbidden, NotFound, ValidationFailed
 from apps.notifications import services as notifications
 
 from .lifecycle import _ensure_commercial_user, _owned_for_update
+from .queries import title_of
 
 FINAL_SETTLEMENT = ("completed", "failed")
 
@@ -78,5 +79,5 @@ def rate(user, auction_id, *, score: int, comment: str = "") -> Rating:
             auction_id=auction.pk,
             data={"score": score},
         )
-        notifications.notify([ratee], "rating_received", auction_id=auction.pk)
+        notifications.notify([ratee], "rating_received", auction_id=auction.pk, data={"title": title_of(auction)})
     return rating
