@@ -11,6 +11,15 @@
 
 ## Handoffs activos
 
+- Fecha/hora: 2026-10-12T23:30:01-05:00
+- Issue/PR: perfil configurable (rama `backend-lancex`)
+- Para rol: Base de datos
+- Estado: **bloqueante tras el merge** — aplicar antes de usar el backend contra Supabase
+- Contexto: nueva migración aditiva `supabase/migrations/20261012230000_perfil_usuario.sql` (`app_user.bio`, `app_user.location_city`, ambas NULL con CHECK). El modelo `User` ya las lee: hasta que se aplique en Supabase, cualquier consulta de usuarios contra Supabase fallará.
+- Archivos, tablas o endpoints afectados: `lancex.app_user`.
+- Acción requerida: tras el merge a `main`, `git pull` y `.\scripts\db\push_supabase.ps1` (aplica solo la migración nueva); registrar `supabase migration list` en la bitácora. Pendientes previos: bucket PRIVADO `listing-images` en Storage y compartir `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY`.
+- Cómo validar: en el SQL Editor `SELECT bio, location_city FROM lancex.app_user LIMIT 1;` sin error.
+
 - Fecha/hora: 2026-10-12T20:26:42-05:00
 - Issue/PR: LX-13 (seed), LX-75, LX-80 (Fase 7)
 - Para rol: Base de datos / seguridad

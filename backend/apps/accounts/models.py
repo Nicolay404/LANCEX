@@ -35,6 +35,8 @@ class User(AbstractBaseUser):
     status_changed_at = models.DateTimeField(null=True, blank=True)
     status_changed_by = models.UUIDField(null=True, blank=True)
     created_at = models.DateTimeField(db_default=Now())
+    bio = models.CharField(max_length=300, null=True, blank=True)  # perfil público opcional
+    location_city = models.CharField(max_length=80, null=True, blank=True)
     # `password` y `last_login` vienen de AbstractBaseUser.
 
     USERNAME_FIELD = "email"

@@ -59,12 +59,29 @@ class AuctionListView(APIView):
     @extend_schema(
         parameters=[
             OpenApiParameter(name, str, required=False)
-            for name in ("status", "mechanism", "category", "q", "ending_soon", "mine", "ordering")
+            for name in (
+                "status",
+                "mechanism",
+                "category",
+                "q",
+                "ending_soon",
+                "mine",
+                "ordering",
+                "seller",
+                "organization",
+            )
         ]
     )
     def get(self, request):
         now = time_source.db_now()
-        qs = queries.catalog(request.user, request.query_params, now)
+        params = request.query_params
+        for key in ("seller", "organization"):
+            if params.get(key):
+                try:
+                    uuid.UUID(params[key])
+                except ValueError:
+                    raise ValidationFailed(details={"fields": {key: ["UUID no válido."]}}) from None
+        qs = queries.catalog(request.user, params, now)
         paginator = StandardPagination()
         page = paginator.paginate_queryset(qs, request, view=self)
         return paginator.get_paginated_response([presenters.summary(a, evaluate(a, now)) for a in page])

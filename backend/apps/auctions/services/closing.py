@@ -24,7 +24,7 @@ from apps.audit.services import record
 from apps.core.time import time_source
 from apps.notifications import services as notifications
 
-from . import participants
+from . import participants, queries
 from .snapshot import evaluate
 
 logger = logging.getLogger("lancex.closing")
@@ -163,7 +163,7 @@ def _notify_closed(auction: Auction, records: list[BidRecord]) -> None:
     """REGLAS §11: ganador, perdedores y dueño, en la misma transacción del cierre."""
     winner = str(auction.winner_user_id) if auction.winner_user_id else None
     final = None if auction.final_price is None else f"{auction.final_price:.2f}"
-    data = {"outcome": auction.outcome, "final_price": final}
+    data = {"outcome": auction.outcome, "final_price": final, "title": queries.title_of(auction)}
     bidders = {r.bidder_user_id for r in records}
     if winner:
         notifications.notify([winner], "auction_won", auction_id=auction.pk, data=data)
@@ -213,8 +213,11 @@ def notify_watchers() -> int:
             cursor.execute(
                 f"""
                 INSERT INTO notification (user_id, type, auction_id, data)
-                SELECT w.user_id, %s, a.id, '{{}}'::jsonb
+                SELECT w.user_id, %s, a.id,
+                       jsonb_build_object('title', COALESCE(l.title, pr.title), 'ends_at', a.ends_at)
                   FROM watchlist w JOIN auction a ON a.id = w.auction_id
+                  LEFT JOIN listing l ON l.id = a.listing_id
+                  LEFT JOIN procurement_request pr ON pr.id = a.procurement_request_id
                  WHERE a.status IN ('scheduled', 'active') AND {condition}
                    AND NOT EXISTS (SELECT 1 FROM notification n
                                     WHERE n.user_id = w.user_id AND n.auction_id = a.id AND n.type = %s)

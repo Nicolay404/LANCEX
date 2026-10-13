@@ -9,6 +9,15 @@
 
 ## Handoffs activos
 
+- Fecha/hora: 2026-10-12T23:30:01-05:00
+- Issue/PR: pendientes de LX-15/LX-35/LX-38 + pantallas de PANTALLAS-Y-NAVEGACION sin endpoint (rama `backend-lancex`)
+- Para rol: Frontend
+- Estado: listo para consumir
+- Contexto: resueltos los 3 pedidos y agregados los endpoints de "Mi cuenta" y "Mi actividad".
+- Archivos, tablas o endpoints afectados: `GET /listings/` (mis publicaciones), `listing_id` en `GET /auctions/{id}/`, `data.title` en notificaciones; `PATCH /auth/me/` acepta `bio` y `location_city` (y `UserMe` los devuelve); `GET /auth/sessions/` y `POST /auth/sessions/revoke-others/`; `GET /users/{id}/` con `bio`, `location_city`, `member_since`; `GET /auctions/?seller=` (perfil público) y `?organization=` (panel de organización); `watchers_count` en el detalle para el dueño; `GET /me/summary/` (/panel), `GET /me/participations/?tab=` (/mis-pujas), `GET /me/activity/` (registro), `GET /organizations/{id}/registrations/` (/org/:orgId/inscripciones).
+- Acción requerida: conectar /mis-publicaciones, "Reportar publicación", títulos en notificaciones, /panel, /mis-pujas, /cuenta (bio, ciudad, sesiones, cerrar otras sesiones, registro de actividad), perfil público con sus subastas, panel e inscripciones de organización. Imágenes (LX-73): esperan a que BD configure Supabase Storage (`503 STORAGE_UNAVAILABLE` mientras tanto). El "resumen de operaciones" NO es un saldo: mostrar el aviso `operations.notice`.
+- Cómo validar: `tests/auctions/test_account_and_activity.py` y el OpenAPI en `/api/v1/schema/`.
+
 - Fecha/hora: 2026-10-12T20:26:42-05:00
 - Issue/PR: LX-70, LX-71, LX-72, LX-77, LX-79 (Fase 7; rama `backend-lancex`)
 - Para rol: Frontend (LX-73, LX-78)

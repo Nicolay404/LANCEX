@@ -88,9 +88,11 @@ Leyenda de acceso: **P** público, **A** usuario autenticado con rol `user`, **D
 | POST | `/auth/login/` | P | `{email, password}` → `200` `UserMe` |
 | POST | `/auth/logout/` | sesión | `204`; borra la sesión |
 | GET | `/auth/me/` | sesión | `UserMe` |
-| PATCH | `/auth/me/` | sesión | Solo `{display_name}`; cualquier otro campo → `UNKNOWN_FIELD` |
+| PATCH | `/auth/me/` | sesión | `{display_name, bio, location_city}` (parcial; `bio` ≤ 300 sin URLs, `""` la borra); cualquier otro campo → `UNKNOWN_FIELD` |
+| GET | `/auth/sessions/` | sesión | Mis sesiones activas `{id (hash, nunca la clave), is_current, expires_at}` |
+| POST | `/auth/sessions/revoke-others/` | sesión | Cierra las demás sesiones; mantiene la actual → `{revoked}` |
 | POST | `/auth/password/` | sesión | `{current_password, new_password}`; cierra las demás sesiones |
-| GET | `/users/{id}/` | P | Perfil público: `display_name`, reputación |
+| GET | `/users/{id}/` | P | Perfil público: `display_name`, `bio`, `location_city`, reputación, `member_since` (nunca email). Sus subastas: `GET /auctions/?seller={id}` |
 
 `UserMe` (única fuente para construir la interfaz; ADR-0006):
 
@@ -126,6 +128,7 @@ Leyenda de acceso: **P** público, **A** usuario autenticado con rol `user`, **D
 | Método | Ruta | Acceso | Descripción |
 |---|---|---|---|
 | GET | `/categories/` | P | Lista |
+| GET | `/listings/` | A | Mis publicaciones (paginado, `-updated_at`): `id, category, title, item_condition, location_city, created_at, updated_at, editable, latest_auction{id,status,mechanism}, cover_image_url` |
 | POST | `/listings/` | A | Crear artículo |
 | GET/PATCH | `/listings/{id}/` | D | Editar solo si no tiene subasta publicada |
 | POST | `/listings/{id}/images/upload-url/` | D | `{content_type, size_bytes}` → `{upload_url, storage_path, expires_in}` |
@@ -138,7 +141,7 @@ Leyenda de acceso: **P** público, **A** usuario autenticado con rol `user`, **D
 
 | Método | Ruta | Acceso | Descripción |
 |---|---|---|---|
-| GET | `/auctions/` | P | Catálogo. Filtros: `status` (efectivo), `mechanism`, `category`, `q`, `ending_soon=true`, `mine=owner\|participating\|watching` (A). Orden: `ends_at`, `-created_at`, `current_price` |
+| GET | `/auctions/` | P | Catálogo. Filtros: `status` (efectivo), `mechanism`, `category`, `q`, `ending_soon=true`, `mine=owner\|participating\|watching` (A), `seller={user_id}` (perfil público, sin borradores), `organization={org_id}` (solo miembros: panel de la organización, incluye borradores). Orden: `ends_at`, `-created_at`, `current_price` |
 | POST | `/auctions/` | A / M | Crear en `draft` (ver payload) |
 | GET | `/auctions/{id}/` | P | Detalle según audiencia (matriz) |
 | PATCH | `/auctions/{id}/` | D | Solo en `draft`; en `scheduled` solo textos |
@@ -159,6 +162,15 @@ Leyenda de acceso: **P** público, **A** usuario autenticado con rol `user`, **D
 | PATCH | `/auctions/{id}/settlement/` | D | `{settlement_status, settlement_note}` |
 | POST | `/auctions/{id}/rating/` | ganador o dueño | `{score, comment}` |
 | PUT/DELETE | `/auctions/{id}/watch/` | A | Seguir / dejar de seguir |
+
+### Mi cuenta y actividad
+
+| Método | Ruta | Acceso | Descripción |
+|---|---|---|---|
+| GET | `/me/summary/` | sesión | `/panel`: `participations{leading, outbid, sealed_offers, won}`, `my_auctions{draft, scheduled_or_active, sold, unsold}`, `unread_notifications`, `operations{notice, bought_total, sold_total, settled_as_buyer, settled_as_seller, pending_settlements}` (informativo: LANCEX no procesa pagos ni guarda saldos) |
+| GET | `/me/participations/?tab=active\|won\|lost` | A | `/mis-pujas`: `auction_id, title, mechanism, closing_policy, status, ends_at, my_status (leading\|outbid\|offer_submitted\|offer_withdrawn\|pending_result\|won\|lost\|cancelled), current_price, my_last_bid, my_proxy_max, my_sealed_offer` (solo datos propios) |
+| GET | `/me/activity/` | sesión | Registro de mis acciones auditadas: `occurred_at, action, entity_type, auction_id, auction_title, details` (lista blanca por acción) |
+| GET | `/organizations/{id}/registrations/` | M | Inscripciones de mi organización proveedora con su subasta |
 
 ### Reportes
 

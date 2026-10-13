@@ -35,7 +35,34 @@ class CategoryListView(APIView):
 
 
 class ListingCreateView(APIView):
-    permission_classes = [HasCapability(Cap.LISTING_MANAGE_OWN)]
+    permission_classes = [
+        ByMethod(GET=HasCapability(Cap.LISTING_MANAGE_OWN), POST=HasCapability(Cap.LISTING_MANAGE_OWN))
+    ]
+
+    def get(self, request):
+        """`GET /listings/`: mis publicaciones (paginado, `-updated_at`)."""
+        from apps.core.pagination import StandardPagination
+
+        paginator = StandardPagination()
+        page = paginator.paginate_queryset(services.own_listings(request.user), request, view=self)
+        overview = services.listing_overview(page)
+        covers = images.first_images(listing.pk for listing in page)
+        return paginator.get_paginated_response(
+            [
+                {
+                    "id": str(listing.pk),
+                    "category": {"id": listing.category_id, "name": listing.category.name},
+                    "title": listing.title,
+                    "item_condition": listing.item_condition,
+                    "location_city": listing.location_city,
+                    "created_at": listing.created_at,
+                    "updated_at": listing.updated_at,
+                    "cover_image_url": covers.get(str(listing.pk)),
+                    **overview[str(listing.pk)],
+                }
+                for listing in page
+            ]
+        )
 
     @extend_schema(request=ListingInput, responses={201: ListingOwnerSerializer})
     def post(self, request):

@@ -140,6 +140,7 @@ def detail(auction: Auction, ev: Effective, now: datetime, user, caps: Capabilit
     data = {
         **summary(auction, ev),
         "proxy_enabled": auction.proxy_enabled,
+        "listing_id": str(auction.listing_id) if auction.listing_id else None,  # para "Reportar publicación"
         "description": listing.description if listing else None,
         "item_condition": listing.item_condition if listing else None,
         "location_city": listing.location_city if listing else None,
@@ -161,6 +162,7 @@ def detail(auction: Auction, ev: Effective, now: datetime, user, caps: Capabilit
     if is_reverse(auction):
         data["reverse"] = _reverse_info(auction)
     if owner or is_staff_viewer(caps):
+        data["watchers_count"] = queries.watchers_count(auction.pk)  # panel del dueño
         data["reserve_price"] = to_str(auction.reserve_price)
         data["published_at"] = auction.published_at
         data["cancel_reason"] = auction.cancel_reason

@@ -10,6 +10,15 @@
 
 ## Handoffs activos
 
+- Fecha/hora: 2026-10-12T23:30:01-05:00
+- Issue/PR: respuesta a los handoffs de LX-15, LX-35 y LX-38 (rama `backend-lancex`)
+- Para rol: Backend (ARQ) — CERRADO
+- Estado: resuelto
+- Contexto: (1) `GET /listings/` implementado tal como se propuso (más `latest_auction` y `cover_image_url`); (2) `listing_id` agregado al detalle de la subasta (dato no sensible); (3) `data.title` en todas las notificaciones de subasta (outbid, cierre, cancelación, seguimiento, inscripción, calificación).
+- Archivos, tablas o endpoints afectados: ver handoff de Frontend del mismo momento.
+- Acción requerida: ninguna para Backend.
+- Cómo validar: `tests/auctions/test_account_and_activity.py::TestFrontendRequests`.
+
 - Fecha/hora: 2026-10-12T22:44:55-05:00
 - Issue/PR: LX-38 (rama `frontend-lancex`)
 - Para rol: Backend (ARQ)

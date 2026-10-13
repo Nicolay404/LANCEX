@@ -101,6 +101,20 @@ def delete_image(user, listing_id, image_id) -> None:
     get_storage().delete(path)
 
 
+def first_images(listing_ids) -> dict[str, str]:
+    """Primera imagen de cada publicación con UNA sola llamada a Storage (para listados)."""
+    firsts: dict[str, str] = {}
+    for img in ListingImage.objects.filter(listing_id__in=list(listing_ids)).order_by("listing_id", "position"):
+        firsts.setdefault(str(img.listing_id), img.storage_path)
+    if not firsts:
+        return {}
+    try:
+        urls = get_storage().signed_read_urls(list(firsts.values()))
+    except Exception:  # noqa: BLE001 - sin Storage, el listado se muestra sin imágenes
+        return {}
+    return {listing_id: urls[path] for listing_id, path in firsts.items() if path in urls}
+
+
 def signed_images(listing_id) -> list[dict]:
     """URLs firmadas de lectura (1 h). Si Storage no responde, la subasta se muestra sin imágenes."""
     if listing_id is None:

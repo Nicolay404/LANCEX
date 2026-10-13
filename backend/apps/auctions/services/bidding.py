@@ -38,6 +38,7 @@ from apps.core.time import time_source
 from apps.notifications import services as notifications
 from apps.organizations import services as organizations
 
+from . import queries
 from .snapshot import evaluate
 
 logger = logging.getLogger("lancex.bids")
@@ -311,7 +312,7 @@ def _commit_outcome(auction, state, outcome: BidOutcome, now, *, challenger, ide
             [previous_leader],
             "outbid",
             auction_id=auction.pk,
-            data={"current_price": f"{outcome.current_price:.2f}"},
+            data={"current_price": f"{outcome.current_price:.2f}", "title": queries.title_of(auction)},
         )
     return next(b for b in reversed(created) if b.bidder_user_id == str(challenger.pk))
 

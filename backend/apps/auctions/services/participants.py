@@ -21,6 +21,7 @@ from apps.core.time import time_source
 from apps.notifications import services as notifications
 from apps.organizations import services as organizations
 
+from .queries import title_of
 from .snapshot import evaluate
 
 NOT_REVIEWED = "not_reviewed"
@@ -146,7 +147,10 @@ def decide(user: User, auction_id, participant_id, *, status: str, reason: str =
             [participant.registered_by_user_id],
             f"participant_{status}",
             auction_id=auction.pk,
-            data={"reason": participant.decision_reason} if status == "rejected" else {},
+            data={
+                "title": title_of(auction),
+                **({"reason": participant.decision_reason} if status == "rejected" else {}),
+            },
         )
     return participant
 
@@ -163,6 +167,17 @@ def visible_participants(user, auction_id) -> tuple[Auction, list[AuctionPartici
     if not is_buyer:
         qs = qs.filter(organization_id__in=organizations.member_organization_ids(user))
     return auction, list(qs), is_buyer
+
+
+def registrations_of_organization(user, organization_id) -> list[AuctionParticipant]:
+    """`/org/:orgId/inscripciones`: inscripciones de MI organización proveedora (solo miembros)."""
+    if organizations.active_membership(user, organization_id) is None:
+        raise NotFound()
+    return list(
+        AuctionParticipant.objects.filter(organization_id=organization_id)
+        .select_related("auction__procurement_request", "organization")
+        .order_by("-registered_at")
+    )
 
 
 def admitted_organization_for(user, auction: Auction, organization_id=None) -> str:

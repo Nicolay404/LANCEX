@@ -46,6 +46,7 @@ endpoints:
 
   - route: /api/v1/listings/
     methods:
+      GET: {visitor: 401, user: 200, buyer_member: 200, supplier_member: 200, moderator: 403, admin: 403}
       POST: {visitor: 401, user: 201, buyer_member: 201, supplier_member: 201, moderator: 403, admin: 403}
     notes: "Staff no vende. Máximo 50 por usuario -> 409 LIMIT_REACHED."
 
@@ -289,3 +290,33 @@ endpoints:
     methods:
       GET: {visitor: 401, user: 403, buyer_member: 403, supplier_member: 403, moderator: 403, admin: 200}
     notes: "Heartbeats del job y cierres pendientes."
+
+  - route: /api/v1/me/summary/
+    methods:
+      GET: {visitor: 401, user: 200, buyer_member: 200, supplier_member: 200, moderator: 200, admin: 200}
+    notes: "Solo datos propios; resumen informativo, no saldo."
+
+  - route: /api/v1/me/participations/
+    methods:
+      GET: {visitor: 401, user: 200, buyer_member: 200, supplier_member: 200, moderator: 403, admin: 403}
+    notes: "?tab=active|won|lost. Mi máximo proxy y mi oferta sellada, solo propios."
+
+  - route: /api/v1/me/activity/
+    methods:
+      GET: {visitor: 401, user: 200, buyer_member: 200, supplier_member: 200, moderator: 200, admin: 200}
+    notes: "Mis acciones auditadas (lista blanca de campos)."
+
+  - route: /api/v1/auth/sessions/
+    methods:
+      GET: {visitor: 401, user: 200, buyer_member: 200, supplier_member: 200, moderator: 200, admin: 200}
+    notes: "Sin claves de sesión: id derivado por hash."
+
+  - route: /api/v1/auth/sessions/revoke-others/
+    methods:
+      POST: {visitor: 401, user: 200, buyer_member: 200, supplier_member: 200, moderator: 200, admin: 200}
+    notes: "Mantiene la sesión actual."
+
+  - route: /api/v1/organizations/{organization_id}/registrations/
+    methods:
+      GET: {visitor: 401, user: 403, buyer_member: 404, supplier_member: 404, moderator: 403, admin: 403}
+    notes: "Con organización AJENA -> 404; miembro propio -> 200."

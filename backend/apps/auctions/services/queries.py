@@ -61,8 +61,19 @@ def catalog(user, params, now: datetime) -> QuerySet:
             qs = qs.filter(pk__in=RawSQL("SELECT auction_id FROM watchlist WHERE user_id = %s", [user.pk]))
         else:
             raise ValidationFailed(details={"fields": {"mine": ["Usa owner, participating o watching."]}})
-    if mine != "owner":
+    organization = params.get("organization")
+    if organization:
+        # Panel de la organización: solo para sus miembros activos (incluye sus borradores).
+        from apps.organizations import services as organizations
+
+        if organizations.active_membership(user, organization) is None:
+            raise NotFound()
+        qs = qs.filter(organization_id=organization)
+    if mine != "owner" and not organization:
         qs = qs.exclude(status=Status.DRAFT)  # el catálogo público nunca lista borradores
+    if seller := params.get("seller"):
+        # Perfil público: subastas públicas del vendedor (nunca sus borradores).
+        qs = qs.filter(owner_user_id=seller).exclude(status=Status.DRAFT)
 
     if status := params.get("status"):
         qs = qs.filter(effective_status_filter(status, now))
@@ -83,12 +94,33 @@ def catalog(user, params, now: datetime) -> QuerySet:
     return qs.order_by(ORDERINGS[ordering], "id")
 
 
+def title_of(auction: Auction) -> str | None:
+    """Título público: el de la publicación o el de la necesidad B2B (dato público)."""
+    if auction.listing_id:
+        from apps.catalog.models import Listing
+
+        return Listing.objects.filter(pk=auction.listing_id).values_list("title", flat=True).first()
+    if auction.procurement_request_id:
+        from apps.catalog.models import ProcurementRequest
+
+        return (
+            ProcurementRequest.objects.filter(pk=auction.procurement_request_id).values_list("title", flat=True).first()
+        )
+    return None
+
+
 def pseudonyms(auction_id) -> dict[str, int]:
     """`Postor N`: N = orden de la primera puja de cada postor en la subasta."""
     order: dict[str, int] = {}
     for bidder in Bid.objects.filter(auction_id=auction_id).order_by("seq").values_list("bidder_user_id", flat=True):
         order.setdefault(str(bidder), len(order) + 1)
     return order
+
+
+def watchers_count(auction_id) -> int:
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT count(*) FROM watchlist WHERE auction_id = %s", [auction_id])
+        return cursor.fetchone()[0]
 
 
 def is_watching(user, auction_id) -> bool:
