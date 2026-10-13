@@ -22,7 +22,7 @@ class AuctionCreateInput(StrictInputMixin, serializers.Serializer):
     proxy_enabled = serializers.BooleanField(default=False)
     listing_id = serializers.UUIDField()
     starting_price = AmountField()
-    min_increment = AmountField()
+    min_increment = AmountField(required=False, allow_null=True)  # obligatorio en ascendente (lo valida el dominio)
     reserve_price = AmountField(required=False, allow_null=True)
     starts_at = serializers.DateTimeField()
     ends_at = serializers.DateTimeField()
@@ -56,6 +56,10 @@ class BidInput(StrictInputMixin, serializers.Serializer):
 
 class ProxyLimitInput(StrictInputMixin, serializers.Serializer):
     max_amount = AmountField()
+
+
+class SealedOfferInput(StrictInputMixin, serializers.Serializer):
+    amount = AmountField()
 
 
 def validated(serializer_class, data, **kwargs) -> dict:

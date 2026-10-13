@@ -203,8 +203,10 @@ def cancel_by_owner(user: User, auction_id, *, reason: str) -> Auction:
         auction = _owned_for_update(user, auction_id)
         now = time_source.db_now()
         effective = evaluate(auction, now).status
+        # En sellado `bid_count` es el contador interno de versiones (incluye retiradas): cuenta lo vigente.
+        has_participation = auction.active_offer_count > 0 if auction.mechanism == "sealed" else auction.bid_count > 0
         allowed = effective in (Status.DRAFT, Status.SCHEDULED) or (
-            effective == Status.ACTIVE and auction.bid_count == 0 and auction.active_offer_count == 0
+            effective == Status.ACTIVE and not has_participation
         )
         if not allowed:
             raise domain_errors.invalid_transition(effective, "cancel")

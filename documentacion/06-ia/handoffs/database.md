@@ -11,6 +11,15 @@
 
 ## Handoffs activos
 
+- Fecha/hora: 2026-10-12T19:55:50-05:00
+- Issue/PR: LX-41, LX-43 (sobre cerrado)
+- Para rol: Base de datos / seguridad
+- Estado: listo para consumir
+- Contexto: ya cubierto por ARQ: empate por `seq` de la versión vigente, no fuga antes del cierre (API, auditoría, ETag), 5 ediciones simultáneas -> una sola vigente. Modelo nuevo `SealedOffer` (`managed = False`), cubierto por la prueba de deriva.
+- Archivos, tablas o endpoints afectados: `sealed_offer`, `auction.active_offer_count`, `audit_event` (`sealed_offer_*` sin importes, `sealed_offers_revealed`).
+- Acción requerida: LX-43 ampliar QA-02 a logs de Firestore (los rechazos solo registran `error_code`). Sin cambios de esquema.
+- Cómo validar: `LANCEX_REQUIRE_DB=1 python -m pytest tests/auctions -q`.
+
 - Fecha/hora: 2026-10-11T22:27:02-05:00
 - Issue/PR: LX-34 (invariante proxy bajo concurrencia)
 - Para rol: Base de datos

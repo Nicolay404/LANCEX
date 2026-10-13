@@ -19,7 +19,7 @@ from django.db import connection, transaction
 
 from apps.auctions.domain import registry
 from apps.auctions.domain.state import BidRecord, Status
-from apps.auctions.models import Auction, Bid, JobHeartbeat
+from apps.auctions.models import Auction, Bid, JobHeartbeat, SealedOffer
 from apps.audit.services import record
 from apps.core.time import time_source
 from apps.notifications import services as notifications
@@ -54,12 +54,11 @@ def close_auction(auction_id, *, skip_locked: bool = False) -> CloseResult:
 
         state = effective.state
         policy = registry.closing_policy_for(state)
-        records = [
-            BidRecord(seq=b.seq, bidder_user_id=str(b.bidder_user_id), amount=b.amount, counted=b.counted)
-            for b in Bid.objects.filter(auction_id=auction.pk).only("seq", "bidder_user_id", "amount", "counted")
-        ]
+        records = _result_records(auction)
         valid = [r for r in records if policy.bid_counts_for_result(state, r)]
         result = registry.mechanism_for(state).select_winner(state, valid)
+        if auction.mechanism == "sealed":
+            _reveal_sealed_offers(auction, now)
 
         auction.status = Status.CLOSED
         auction.outcome = result.outcome
@@ -99,6 +98,30 @@ def close_auction(auction_id, *, skip_locked: bool = False) -> CloseResult:
             lambda: logger.info("Subasta cerrada", extra={"event": "auction_closed", "auction_id": auction_pk})
         )
     return CloseResult(closed=True, auction=auction)
+
+
+def _result_records(auction: Auction) -> list[BidRecord]:
+    """Libro que decide el resultado: pujas aceptadas u ofertas selladas vigentes."""
+    if auction.mechanism == "sealed":
+        offers = SealedOffer.objects.filter(auction_id=auction.pk, is_current=True, status="submitted")
+        return [BidRecord(seq=o.seq, bidder_user_id=str(o.bidder_user_id), amount=o.amount) for o in offers]
+    return [
+        BidRecord(seq=b.seq, bidder_user_id=str(b.bidder_user_id), amount=b.amount, counted=b.counted)
+        for b in Bid.objects.filter(auction_id=auction.pk).only("seq", "bidder_user_id", "amount", "counted")
+    ]
+
+
+def _reveal_sealed_offers(auction: Auction, now) -> None:
+    """Revelación automática al cierre (REGLAS §6): no la dispara el dueño."""
+    revealed = SealedOffer.objects.filter(auction_id=auction.pk, revealed_at__isnull=True).update(revealed_at=now)
+    record(
+        "sealed_offers_revealed",
+        actor_user_id=None,
+        entity_type="auction",
+        entity_id=auction.pk,
+        auction_id=auction.pk,
+        data={"offers": revealed, "participants": auction.active_offer_count},
+    )
 
 
 def _notify_closed(auction: Auction, records: list[BidRecord]) -> None:

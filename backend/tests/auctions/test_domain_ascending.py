@@ -114,7 +114,7 @@ class TestConfig:
         "changes",
         [
             {"closing_policy": "candle"},  # Fase 6
-            {"mechanism": "sealed"},  # Fase 4
+            {"mechanism": "reverse"},  # Fase 5
         ],
     )
     def test_not_yet_available_in_this_phase(self, changes):

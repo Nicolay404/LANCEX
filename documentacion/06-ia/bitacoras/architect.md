@@ -159,3 +159,20 @@
 - Pruebas ejecutadas y resultado real: `ruff check` y `format --check` limpios; `manage.py check` sin errores; `LANCEX_REQUIRE_DB=1 pytest`: **329 passed** (casos obligatorios de §3, soft close con tope, no fuga del máximo proxy en detalle/live/bids/result/proxy-limit ajeno/auditoría/notificaciones, notificaciones outbid/won/lost/owner/cancelled/watch, reportes con límites, 8 proxies en paralelo con un solo límite vivo).
 - Riesgos/bloqueos: Supabase aún sin migración aplicada (BD). `watch_auction_ending` depende de que alguien ejecute `close_due_auctions --loop`.
 - Handoff/siguiente paso: FE (LX-35, LX-38) y BD (LX-34). Fase 4 tras integrar la Fase 3 en `main`.
+
+## 2026-10-12T19:55:50-05:00: CIERRE: Fase 4 backend (LX-40)
+- Humano responsable: Nicolay.
+- Herramienta/modelo IA: Claude (claude-opus-5-5).
+- Rama y commit: `feat/architect/fase-4` (desde `main` con la Fase 3) → `backend-lancex`.
+- Objetivo: sobre cerrado de primer precio según REGLAS §6 y la matriz de visibilidad.
+- Archivos/documentos modificados: `domain/mechanisms/sealed.py`, `domain/registry.py`; modelo `SealedOffer`; servicios `sealed.py`, `closing.py` (registros por mecanismo + revelación), `lifecycle.py` (cancelación con `active_offer_count`); `api/presenters.py` (`_counters` como única fuente de precio/contadores, ranking por audiencia), `api/views.py` (`SealedOfferView`, `/bids/` sellado), `api/serializers.py` (`min_increment` opcional, `SealedOfferInput`), `api/urls.py`; pruebas `test_domain_sealed.py`, `test_sealed_flow.py`, concurrencia; matriz de endpoints; contrato (`MECHANISM_MISMATCH`); handoffs FE y BD; estado compartido.
+- Decisiones/supuestos:
+  - Canal lateral: `version` solo cambia si cambia `active_offer_count` (editar no altera el ETag).
+  - `reserve_met` en `null` antes del cierre en sellado (revelaría si alguna oferta supera la reserva).
+  - Revelación solo al MATERIALIZAR el cierre; con `result_pending` aún no se muestra nada.
+  - `bid_count` es el contador interno de versiones (para `seq`); nunca se publica en sellado.
+  - Ranking: participantes (incluidos quienes retiraron su oferta) con seudónimos; dueño y staff con identidad; público solo precio final y número de ofertas.
+  - Auditoría `sealed_offer_*` sin importes; `sealed_offers_revealed` con número de ofertas.
+- Pruebas ejecutadas y resultado real: ruff limpio; manage.py check sin errores; LANCEX_REQUIRE_DB=1 pytest: 355 passed (incluye no fuga de importes sellados en detalle/live/bids/result/catálogo/auditoría para público, otro participante, dueño y admin; ETag sin cambios al editar; ranking por audiencia; empate por seq vigente; 5 ofertas simultáneas -> 1 vigente).
+- Riesgos/bloqueos: verificación de la base Supabase pendiente de la contraseña de `lancex_app` (la compañera ya aplicó las tablas, según el humano).
+- Handoff/siguiente paso: FE (LX-42), BD (LX-41/43). Fase 5 tras integrar la Fase 4 en `main`.

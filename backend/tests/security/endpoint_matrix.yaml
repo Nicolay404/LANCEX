@@ -119,3 +119,10 @@ endpoints:
     methods:
       POST: {visitor: 401, user: 201, buyer_member: 201, supplier_member: 201, moderator: 403, admin: 403}
     notes: "10 por día (LIMIT_REACHED) y uno por objeto (ALREADY_REPORTED)."
+
+  - route: /api/v1/auctions/{auction_id}/sealed-offer/
+    methods:
+      GET: {visitor: 401, user: 200, buyer_member: 200, supplier_member: 200, moderator: 403, admin: 403}
+      PUT: {visitor: 401, user: 201, buyer_member: 201, supplier_member: 201, moderator: 403, admin: 403}
+      DELETE: {visitor: 401, user: 404, buyer_member: 404, supplier_member: 404, moderator: 403, admin: 403}
+    notes: "Solo la oferta propia. PUT con Idempotency-Key en sellada activa ajena (reintento 200); DELETE sin oferta vigente -> 404, con oferta -> 204."

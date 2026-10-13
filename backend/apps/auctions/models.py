@@ -138,6 +138,30 @@ class ProxyBidLimit(models.Model):
         return f"proxy:{self.auction_id}:{self.user_id}:{self.status}"
 
 
+class SealedOffer(models.Model):
+    """PRIVADO hasta el cierre: ofertas de sobre cerrado (una vigente por participante)."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    auction = models.ForeignKey(Auction, on_delete=models.DO_NOTHING, db_column="auction_id", related_name="+")
+    bidder_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING, db_column="bidder_user_id", related_name="+"
+    )
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    seq = models.IntegerField()
+    is_current = models.BooleanField(default=True)
+    status = models.CharField(max_length=20, default="submitted")
+    idempotency_key = models.UUIDField()
+    submitted_at = models.DateTimeField(db_default=ClockTimestamp())
+    revealed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        managed = False
+        db_table = "sealed_offer"
+
+    def __str__(self) -> str:
+        return f"sealed:{self.auction_id}#{self.seq}"
+
+
 class JobHeartbeat(models.Model):
     """Último ciclo de `close_due_auctions` por laptop (`DEV_NAME`); alimenta la salud del admin."""
 

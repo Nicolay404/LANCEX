@@ -10,7 +10,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle, ScopedRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
 
-from apps.auctions.services import bidding, closing, lifecycle, queries
+from apps.auctions.services import bidding, closing, lifecycle, queries, sealed
 from apps.auctions.services.snapshot import evaluate
 from apps.core.capabilities import Cap
 from apps.core.errors import ValidationFailed
@@ -26,6 +26,7 @@ from .serializers import (
     BidInput,
     CancelInput,
     ProxyLimitInput,
+    SealedOfferInput,
     validated,
 )
 
@@ -36,7 +37,7 @@ class BidRateThrottle(ScopedRateThrottle):
     scope_attr = "bid_throttle_scope"
 
     def allow_request(self, request, view):
-        if request.method not in ("POST", "PUT"):
+        if request.method not in ("POST", "PUT", "DELETE"):
             return True
         return super().allow_request(request, view)
 
@@ -129,6 +130,9 @@ class AuctionBidsView(APIView):
     def get(self, request, auction_id):
         auction = queries.get_visible(request.user, auction_id)
         ev = evaluate(auction, time_source.db_now())
+        if presenters.is_sealed(auction):  # vacío antes del cierre; ranking por audiencia después
+            items = presenters.sealed_ranking(auction, request.user, get_capabilities(request))
+            return Response({"count": len(items), "next": None, "previous": None, "results": items})
         qs = auction.bids.select_related("bidder_user").order_by("-seq")
         paginator = StandardPagination()
         page = paginator.paginate_queryset(qs, request, view=self)
@@ -165,6 +169,41 @@ class ProxyLimitView(APIView):
         auction = queries.get_visible(request.user, auction_id)
         body = {**presenters.bid_accepted(result, request.user), **presenters.proxy_limit_view(auction, request.user)}
         return Response(body)
+
+
+class SealedOfferView(APIView):
+    """`GET|PUT|DELETE /auctions/{id}/sealed-offer/`: solo la oferta PROPIA (REGLAS §6)."""
+
+    permission_classes = [
+        ByMethod(
+            GET=HasCapability(Cap.SEALED_MANAGE_OWN),
+            PUT=HasCapability(Cap.SEALED_MANAGE_OWN),
+            DELETE=HasCapability(Cap.SEALED_MANAGE_OWN),
+        )
+    ]
+    throttle_classes = [AnonRateThrottle, UserRateThrottle, BidRateThrottle]
+    bid_throttle_scope = "bids"
+
+    def get(self, request, auction_id):
+        auction = queries.get_visible(request.user, auction_id)
+        return Response(presenters.sealed_offer_view(auction, request.user))
+
+    @extend_schema(
+        request=SealedOfferInput,
+        parameters=[OpenApiParameter("Idempotency-Key", str, OpenApiParameter.HEADER, required=True)],
+    )
+    def put(self, request, auction_id):
+        key = _idempotency_key(request)
+        data = validated(SealedOfferInput, request.data)
+        result = sealed.submit_offer(request.user, auction_id, amount=data["amount"], idempotency_key=key)
+        auction = queries.get_visible(request.user, auction_id)
+        code = status.HTTP_200_OK if result.replayed else status.HTTP_201_CREATED
+        return Response(presenters.sealed_offer_view(auction, request.user), status=code)
+
+    @extend_schema(request=None, responses={204: None})
+    def delete(self, request, auction_id):
+        sealed.withdraw_offer(request.user, auction_id)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class WatchView(APIView):

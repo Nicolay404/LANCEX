@@ -9,6 +9,15 @@
 
 ## Handoffs activos
 
+- Fecha/hora: 2026-10-12T19:55:50-05:00
+- Issue/PR: LX-40 (Fase 4, sobre cerrado; rama `backend-lancex`)
+- Para rol: Frontend (LX-42)
+- Estado: listo para consumir
+- Contexto: subastas `sealed` (cierre `fixed`, sin `min_increment`; `starting_price` = oferta mínima).
+- Archivos, tablas o endpoints afectados: `GET|PUT|DELETE /auctions/{id}/sealed-offer/` (PUT con `Idempotency-Key`, `{amount}` -> `{amount, submitted_at, active_offer_count}`, 201 / 200 en reintento; DELETE 204, 404 sin oferta vigente). En sellado, antes del cierre: `current_price`, `bid_count` y `reserve_met` llegan `null` para todos (también el dueño) y se muestra `active_offer_count`; `GET /bids/` devuelve lista vacía. Tras el cierre: `current_price` = precio final; `GET /bids/` es un ranking (`rank`, `amount`, `bidder` "Postor N"/"Tú", `is_winner`; dueño ve `bidder_identity`); `GET /result/` trae `offer_count` y `viewer.rank`. Detalle: `viewer.my_sealed_offer` (solo la propia).
+- Acción requerida: pantalla de oferta sin datos ajenos; editar = reemplazar (pierde prioridad en empate, avisarlo en la UI). `POST /bids/` en sellado -> `409 MECHANISM_MISMATCH`.
+- Cómo validar: `tests/auctions/test_sealed_flow.py`.
+
 - Fecha/hora: 2026-10-11T22:27:02-05:00
 - Issue/PR: LX-31, LX-32, LX-33, LX-37 (Fase 3; rama `backend-lancex`)
 - Para rol: Frontend (LX-35, LX-38)
