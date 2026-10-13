@@ -218,3 +218,74 @@ endpoints:
     methods:
       GET: {visitor: 200, user: 200, buyer_member: 200, supplier_member: 200, moderator: 200, admin: 200}
     notes: "Público, sin email."
+
+  - route: /api/v1/moderation/summary/
+    methods:
+      GET: {visitor: 401, user: 403, buyer_member: 403, supplier_member: 403, moderator: 200, admin: 200}
+    notes: "Bandeja de staff."
+
+  - route: /api/v1/moderation/reports/
+    methods:
+      GET: {visitor: 401, user: 403, buyer_member: 403, supplier_member: 403, moderator: 200, admin: 200}
+    notes: "?status=open"
+
+  - route: /api/v1/moderation/reports/{report_id}/resolve/
+    methods:
+      POST: {visitor: 401, user: 403, buyer_member: 403, supplier_member: 403, moderator: 200, admin: 200}
+    notes: "Nota obligatoria; actioned exige acción."
+
+  - route: /api/v1/moderation/auctions/{auction_id}/
+    methods:
+      GET: {visitor: 401, user: 403, buyer_member: 403, supplier_member: 403, moderator: 200, admin: 200}
+    notes: "Identidades y auditoría; sin máximos proxy ni sellados."
+
+  - route: /api/v1/moderation/auctions/{auction_id}/cancel/
+    methods:
+      POST: {visitor: 401, user: 403, buyer_member: 403, supplier_member: 403, moderator: 200, admin: 200}
+    notes: "Con motivo; no si ya cerró."
+
+  - route: /api/v1/moderation/users/{user_id}/
+    methods:
+      GET: {visitor: 401, user: 403, buyer_member: 403, supplier_member: 403, moderator: 200, admin: 200}
+    notes: "Ficha con email (staff)."
+
+  - route: /api/v1/moderation/users/{user_id}/suspend/
+    methods:
+      POST: {visitor: 401, user: 403, buyer_member: 403, supplier_member: 403, moderator: 200, admin: 200}
+    notes: "Sobre un usuario normal. Moderador sobre staff -> 403; admin sobre moderador -> 200; sobre admin -> 403."
+
+  - route: /api/v1/admin/users/
+    methods:
+      GET: {visitor: 401, user: 403, buyer_member: 403, supplier_member: 403, moderator: 403, admin: 200}
+    notes: "?q=&role=&status="
+
+  - route: /api/v1/admin/users/{user_id}/reactivate/
+    methods:
+      POST: {visitor: 401, user: 403, buyer_member: 403, supplier_member: 403, moderator: 403, admin: 200}
+    notes: "Con motivo."
+
+  - route: /api/v1/admin/users/{user_id}/role/
+    methods:
+      POST: {visitor: 401, user: 403, buyer_member: 403, supplier_member: 403, moderator: 403, admin: 200}
+    notes: "Step-up; LAST_ADMIN; OPEN_ACTIVITY."
+
+  - route: /api/v1/admin/categories/
+    methods:
+      GET: {visitor: 401, user: 403, buyer_member: 403, supplier_member: 403, moderator: 403, admin: 200}
+      POST: {visitor: 401, user: 403, buyer_member: 403, supplier_member: 403, moderator: 403, admin: 201}
+    notes: "Incluye inactivas."
+
+  - route: /api/v1/admin/categories/{category_id}/
+    methods:
+      PATCH: {visitor: 401, user: 403, buyer_member: 403, supplier_member: 403, moderator: 403, admin: 200}
+    notes: "Renombrar o activar/desactivar."
+
+  - route: /api/v1/admin/audit-events/
+    methods:
+      GET: {visitor: 401, user: 403, buyer_member: 403, supplier_member: 403, moderator: 403, admin: 200}
+    notes: "?auction_id=&actor_id=&action=&from=&to="
+
+  - route: /api/v1/admin/system-health/
+    methods:
+      GET: {visitor: 401, user: 403, buyer_member: 403, supplier_member: 403, moderator: 403, admin: 200}
+    notes: "Heartbeats del job y cierres pendientes."
