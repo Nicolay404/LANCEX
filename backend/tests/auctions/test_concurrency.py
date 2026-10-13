@@ -91,3 +91,21 @@ def test_three_backends_closing_at_once_produce_one_result():
     assert sum(r.closed for r in results) == 1
     assert Auction.objects.get(pk=auction.pk).status == "closed"
     assert AuditEvent.objects.filter(auction_id=auction.pk, action="auction_closed").count() == 1
+
+
+def test_parallel_sealed_offers_from_one_user_keep_one_current_version():
+    """LX-41: ediciones simultáneas -> una sola oferta vigente y contador público en 1."""
+    from apps.auctions.models import SealedOffer
+    from apps.auctions.services import sealed
+
+    auction = active_auction(mechanism="sealed", min_increment=None, starting_price="50.00")
+    user = make_user()
+    amounts = [Decimal("60.00") + Decimal(i) for i in range(5)]
+    results = run_in_threads(
+        [(lambda a=a: sealed.submit_offer(user, auction.pk, amount=a, idempotency_key=uuid.uuid4())) for a in amounts]
+    )
+    assert not [r for r in results if isinstance(r, Exception)], results
+    assert SealedOffer.objects.filter(auction_id=auction.pk, bidder_user_id=user.pk, is_current=True).count() == 1
+    assert SealedOffer.objects.filter(auction_id=auction.pk).count() == 5
+    auction.refresh_from_db()
+    assert auction.active_offer_count == 1

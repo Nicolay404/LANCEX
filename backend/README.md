@@ -99,6 +99,9 @@ python -m pytest                       # unitarias + arquitectura; las de BD se 
 LANCEX_REQUIRE_DB=1 python -m pytest   # CI: falla si falta el Postgres local
 ruff check . && ruff format --check .
 python manage.py emit_test_log         # verifica el envío real a Firestore
+python manage.py close_due_auctions --loop 5   # job de cierre (seguro en las 3 laptops)
+python manage.py seed_demo              # datos demo (LANCEX_DEMO_PASSWORD obligatoria)
+python manage.py bootstrap_admin --email ... --display-name ...  # primer admin (LANCEX_ADMIN_PASSWORD)
 ```
 
 Arranque completo: `documentacion/07-operacion/CONFIGURACION-LOCAL.md`.

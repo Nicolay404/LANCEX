@@ -10,12 +10,12 @@ from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle, ScopedRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
 
-from apps.auctions.services import bidding, closing, lifecycle, queries
+from apps.auctions.services import bidding, closing, lifecycle, participants, post_close, queries, sealed
 from apps.auctions.services.snapshot import evaluate
-from apps.core.capabilities import Cap
-from apps.core.errors import ValidationFailed
+from apps.core.capabilities import Cap, OrgCap
+from apps.core.errors import Conflict, ValidationFailed
 from apps.core.pagination import StandardPagination
-from apps.core.permissions import ByMethod, HasCapability, Public, get_capabilities
+from apps.core.permissions import ByMethod, HasAnyOrgCapability, HasCapability, Public, get_capabilities
 from apps.core.time import time_source
 from apps.notifications import services as notifications
 
@@ -25,7 +25,13 @@ from .serializers import (
     AuctionUpdateInput,
     BidInput,
     CancelInput,
+    ParticipantDecisionInput,
+    ParticipantRegisterInput,
     ProxyLimitInput,
+    RatingInput,
+    ReverseOfferInput,
+    SealedOfferInput,
+    SettlementInput,
     validated,
 )
 
@@ -36,7 +42,7 @@ class BidRateThrottle(ScopedRateThrottle):
     scope_attr = "bid_throttle_scope"
 
     def allow_request(self, request, view):
-        if request.method not in ("POST", "PUT"):
+        if request.method not in ("POST", "PUT", "DELETE"):
             return True
         return super().allow_request(request, view)
 
@@ -129,10 +135,14 @@ class AuctionBidsView(APIView):
     def get(self, request, auction_id):
         auction = queries.get_visible(request.user, auction_id)
         ev = evaluate(auction, time_source.db_now())
-        qs = auction.bids.select_related("bidder_user").order_by("-seq")
+        if presenters.is_sealed(auction):  # vacío antes del cierre; ranking por audiencia después
+            items = presenters.sealed_ranking(auction, request.user, get_capabilities(request))
+            return Response({"count": len(items), "next": None, "previous": None, "results": items})
+        qs = auction.bids.select_related("bidder_user", "organization").order_by("-seq")
         paginator = StandardPagination()
         page = paginator.paginate_queryset(qs, request, view=self)
-        items = presenters.bid_history(page, auction, ev, request.user, get_capabilities(request))
+        history = presenters.reverse_history if presenters.is_reverse(auction) else presenters.bid_history
+        items = history(page, auction, ev, request.user, get_capabilities(request))
         return paginator.get_paginated_response(items)
 
     @extend_schema(
@@ -141,8 +151,13 @@ class AuctionBidsView(APIView):
     )
     def post(self, request, auction_id):
         key = _idempotency_key(request)
-        data = validated(BidInput, request.data)
-        result = bidding.place_bid(request.user, auction_id, amount=data["amount"], idempotency_key=key)
+        auction = queries.get_visible(request.user, auction_id)
+        if presenters.is_reverse(auction):  # {unit_price, shipping_cost}: el servidor calcula el total
+            data = validated(ReverseOfferInput, request.data)
+            result = bidding.place_reverse_offer(request.user, auction_id, idempotency_key=key, **data)
+        else:
+            data = validated(BidInput, request.data)
+            result = bidding.place_bid(request.user, auction_id, amount=data["amount"], idempotency_key=key)
         code = status.HTTP_200_OK if result.replayed else status.HTTP_201_CREATED
         return Response(presenters.bid_accepted(result, request.user), status=code)
 
@@ -165,6 +180,117 @@ class ProxyLimitView(APIView):
         auction = queries.get_visible(request.user, auction_id)
         body = {**presenters.bid_accepted(result, request.user), **presenters.proxy_limit_view(auction, request.user)}
         return Response(body)
+
+
+class SealedOfferView(APIView):
+    """`GET|PUT|DELETE /auctions/{id}/sealed-offer/`: solo la oferta PROPIA (REGLAS §6)."""
+
+    permission_classes = [
+        ByMethod(
+            GET=HasCapability(Cap.SEALED_MANAGE_OWN),
+            PUT=HasCapability(Cap.SEALED_MANAGE_OWN),
+            DELETE=HasCapability(Cap.SEALED_MANAGE_OWN),
+        )
+    ]
+    throttle_classes = [AnonRateThrottle, UserRateThrottle, BidRateThrottle]
+    bid_throttle_scope = "bids"
+
+    def get(self, request, auction_id):
+        auction = queries.get_visible(request.user, auction_id)
+        return Response(presenters.sealed_offer_view(auction, request.user))
+
+    @extend_schema(
+        request=SealedOfferInput,
+        parameters=[OpenApiParameter("Idempotency-Key", str, OpenApiParameter.HEADER, required=True)],
+    )
+    def put(self, request, auction_id):
+        key = _idempotency_key(request)
+        data = validated(SealedOfferInput, request.data)
+        result = sealed.submit_offer(request.user, auction_id, amount=data["amount"], idempotency_key=key)
+        auction = queries.get_visible(request.user, auction_id)
+        code = status.HTTP_200_OK if result.replayed else status.HTTP_201_CREATED
+        return Response(presenters.sealed_offer_view(auction, request.user), status=code)
+
+    @extend_schema(request=None, responses={204: None})
+    def delete(self, request, auction_id):
+        sealed.withdraw_offer(request.user, auction_id)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ParticipantsView(APIView):
+    """`GET|POST /auctions/{id}/participants/`: compradora ve todas; proveedor, las de su organización."""
+
+    permission_classes = [
+        ByMethod(GET=HasAnyOrgCapability(OrgCap.ORG_VIEW), POST=HasAnyOrgCapability(OrgCap.REVERSE_REGISTER))
+    ]
+
+    def get(self, request, auction_id):
+        auction, items, is_buyer = participants.visible_participants(request.user, auction_id)
+        now = time_source.db_now()
+        return Response({"results": [presenters.participant_payload(p, auction, now, full=is_buyer) for p in items]})
+
+    @extend_schema(request=ParticipantRegisterInput)
+    def post(self, request, auction_id):
+        data = validated(ParticipantRegisterInput, request.data)
+        data["compliance"] = [dict(c) for c in data["compliance"]]
+        participant = participants.register(request.user, auction_id, **data)
+        auction, items, _ = participants.visible_participants(request.user, auction_id)
+        mine = next(p for p in items if p.pk == participant.pk)
+        return Response(
+            presenters.participant_payload(mine, auction, time_source.db_now(), full=False),
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class ParticipantDecisionView(APIView):
+    """`POST /auctions/{id}/participants/{pid}/decision/`: miembro de la compradora, antes de starts_at."""
+
+    permission_classes = [HasAnyOrgCapability(OrgCap.PARTICIPANTS_DECIDE)]
+
+    @extend_schema(request=ParticipantDecisionInput)
+    def post(self, request, auction_id, participant_id):
+        data = validated(ParticipantDecisionInput, request.data)
+        participants.decide(request.user, auction_id, participant_id, **data)
+        auction, items, _ = participants.visible_participants(request.user, auction_id)
+        decided = next(p for p in items if str(p.pk) == str(participant_id))
+        return Response(presenters.participant_payload(decided, auction, time_source.db_now(), full=True))
+
+
+class CandleProofView(APIView):
+    """`GET /auctions/{id}/candle-proof/`: solo tras el cierre materializado (REGLAS §5)."""
+
+    permission_classes = [Public]
+
+    def get(self, request, auction_id):
+        auction = queries.get_visible(request.user, auction_id)
+        if auction.closing_policy != "candle":
+            raise Conflict(code="MECHANISM_MISMATCH", message="Esta subasta no cierra por vela.")
+        if not presenters.candle_revealed(auction):
+            raise Conflict(code="NOT_REVEALED_YET", message="La semilla se revela al cierre.")
+        return Response(presenters.candle_proof(auction))
+
+
+class SettlementView(APIView):
+    """`PATCH /auctions/{id}/settlement/`: el dueño (o la compradora) registra el resultado del trato."""
+
+    permission_classes = [HasCapability(Cap.AUCTION_MANAGE_OWN)]
+
+    @extend_schema(request=SettlementInput)
+    def patch(self, request, auction_id):
+        post_close.update_settlement(request.user, auction_id, **validated(SettlementInput, request.data))
+        auction = queries.get_visible(request.user, auction_id)
+        return Response({"settlement_status": auction.settlement_status, "settlement_note": auction.settlement_note})
+
+
+class RatingView(APIView):
+    """`POST /auctions/{id}/rating/`: dueño o ganador, una vez, con liquidación final."""
+
+    permission_classes = [HasCapability(Cap.RATING_SUBMIT)]
+
+    @extend_schema(request=RatingInput)
+    def post(self, request, auction_id):
+        rating = post_close.rate(request.user, auction_id, **validated(RatingInput, request.data))
+        return Response({"id": str(rating.pk), "score": rating.score}, status=status.HTTP_201_CREATED)
 
 
 class WatchView(APIView):

@@ -9,6 +9,42 @@
 
 ## Handoffs activos
 
+- Fecha/hora: 2026-10-12T20:26:42-05:00
+- Issue/PR: LX-70, LX-71, LX-72, LX-77, LX-79 (Fase 7; rama `backend-lancex`)
+- Para rol: Frontend (LX-73, LX-78)
+- Estado: listo para consumir — el backend del contrato v1 está completo
+- Contexto: imágenes, liquidación y calificaciones, perfil público, moderación y administración; datos demo.
+- Archivos, tablas o endpoints afectados: imágenes `POST /listings/{id}/images/upload-url/` -> `{upload_url, storage_path, expires_in}` (el navegador hace `PUT`/`POST` del archivo a `upload_url`), luego `POST /listings/{id}/images/` `{storage_path, position}`; `DELETE /listings/{id}/images/{image_id}/`; `images[]` con URL firmada (1 h) en el detalle de la subasta y de la publicación. `PATCH /auctions/{id}/settlement/`, `POST /auctions/{id}/rating/`, `GET /users/{id}/`. Moderación: `/moderation/summary/`, `/moderation/reports/`, `/moderation/reports/{id}/resolve/`, `/moderation/auctions/{id}/`, `/moderation/auctions/{id}/cancel/`, `/moderation/users/{id}/`, `/moderation/users/{id}/suspend/`, `/moderation/organizations/...`. Admin: `/admin/users/`, `/admin/users/{id}/reactivate/`, `/admin/users/{id}/role/` (step-up), `/admin/categories/` y `/admin/categories/{id}/`, `/admin/audit-events/`, `/admin/system-health/`.
+- Acción requerida: datos demo con `python manage.py seed_demo` (contraseña por `LANCEX_DEMO_PASSWORD`; usuarios `ana|beto|carla|diego|moderador|admin@demo.lancex.test`). Nuevos códigos: `ALREADY_RATED`, `OPEN_ACTIVITY`, `SLUG_ALREADY_EXISTS`, `STORAGE_UNAVAILABLE` (503).
+- Cómo validar: `tests/catalog/test_images.py`, `tests/auctions/test_post_close.py`, `tests/moderation/test_staff.py`.
+
+- Fecha/hora: 2026-10-12T20:17:21-05:00
+- Issue/PR: LX-60 (Fase 6, vela; rama `backend-lancex`)
+- Para rol: Frontend (LX-62)
+- Estado: listo para consumir
+- Contexto: `closing_policy: candle` (solo ascendente, admite proxy) con `candle_window_s` 300–3600 (por defecto 600, no mayor que la subasta).
+- Archivos, tablas o endpoints afectados: detalle con `candle` = `{window_start, window_s, commitment, in_window, price_is_provisional, notice, close_at}` (`close_at` solo tras el cierre); `GET /auctions/{id}/candle-proof/` -> `{auction_id, commitment, seed_hex, window_start, window_s, close_at, algorithm}` tras el cierre (`409 NOT_REVEALED_YET` antes). Historial: `counted` es `null` mientras está abierta y `true/false` tras el cierre.
+- Acción requerida: indicador de fase de vela con el aviso `notice`; precio "provisional" en la ventana; pantalla de verificación con los datos de `candle-proof` (se pueden comprobar con `scripts/verify_candle.py`).
+- Cómo validar: `tests/auctions/test_candle_flow.py`.
+
+- Fecha/hora: 2026-10-12T20:13:16-05:00
+- Issue/PR: LX-50, LX-51, LX-54 (Fase 5, B2B; rama `backend-lancex`)
+- Para rol: Frontend (LX-53)
+- Estado: listo para consumir
+- Contexto: organizaciones, necesidades B2B, inscripción/calificación de proveedores y subasta inversa.
+- Archivos, tablas o endpoints afectados: `POST /organizations/`, `GET|PATCH /organizations/{id}/` (incluye `members` y `my_role`), `POST /organizations/{id}/members/` (`{email}`), `DELETE /organizations/{id}/members/{user_id}/`, `POST /organizations/{id}/transfer-ownership/` (`{new_owner_user_id, password}`), `POST /procurement-requests/`, `GET /procurement-requests/{id}/`, `GET|POST /auctions/{id}/participants/` (`{organization_id, compliance: [{code, complies, comment}]}`), `POST /auctions/{id}/participants/{pid}/decision/` (`{status, reason}`), `GET /moderation/organizations/?status=pending`, `POST /moderation/organizations/{id}/decision/` (`{status, note}`, nota ≥ 3). Crear inversa: `POST /auctions/` con `mechanism: reverse`, `organization_id`, `procurement_request_id`, `reference_budget`, `min_decrement` (sin `listing_id` ni `starting_price`). Ofertar: `POST /auctions/{id}/bids/` con `{unit_price, shipping_cost}` (+ `organization_id` si el usuario está en varias admitidas) e `Idempotency-Key`.
+- Acción requerida: el detalle de una inversa trae `reverse` (necesidad, presupuesto, `admitted_count`, aviso legal "no es SERCOP") y `maximum_allowed` en vez de `minimum_next_bid`. El historial usa "Proveedor N" / "Tu organización" y muestra el desglose solo de la propia organización. Resultado público: `winner_organization`. `UserMe.organizations[].capabilities` decide los menús B2B. Nuevos códigos: `RUC_ALREADY_REGISTERED`, `ALREADY_MEMBER`, `ALREADY_REGISTERED`, `PROCUREMENT_HAS_AUCTION`.
+- Cómo validar: `tests/auctions/test_reverse_flow.py`.
+
+- Fecha/hora: 2026-10-12T19:55:50-05:00
+- Issue/PR: LX-40 (Fase 4, sobre cerrado; rama `backend-lancex`)
+- Para rol: Frontend (LX-42)
+- Estado: listo para consumir
+- Contexto: subastas `sealed` (cierre `fixed`, sin `min_increment`; `starting_price` = oferta mínima).
+- Archivos, tablas o endpoints afectados: `GET|PUT|DELETE /auctions/{id}/sealed-offer/` (PUT con `Idempotency-Key`, `{amount}` -> `{amount, submitted_at, active_offer_count}`, 201 / 200 en reintento; DELETE 204, 404 sin oferta vigente). En sellado, antes del cierre: `current_price`, `bid_count` y `reserve_met` llegan `null` para todos (también el dueño) y se muestra `active_offer_count`; `GET /bids/` devuelve lista vacía. Tras el cierre: `current_price` = precio final; `GET /bids/` es un ranking (`rank`, `amount`, `bidder` "Postor N"/"Tú", `is_winner`; dueño ve `bidder_identity`); `GET /result/` trae `offer_count` y `viewer.rank`. Detalle: `viewer.my_sealed_offer` (solo la propia).
+- Acción requerida: pantalla de oferta sin datos ajenos; editar = reemplazar (pierde prioridad en empate, avisarlo en la UI). `POST /bids/` en sellado -> `409 MECHANISM_MISMATCH`.
+- Cómo validar: `tests/auctions/test_sealed_flow.py`.
+
 - Fecha/hora: 2026-10-11T22:27:02-05:00
 - Issue/PR: LX-31, LX-32, LX-33, LX-37 (Fase 3; rama `backend-lancex`)
 - Para rol: Frontend (LX-35, LX-38)

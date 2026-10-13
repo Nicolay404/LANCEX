@@ -51,6 +51,15 @@
 | 409 | `ALREADY_LEADING` | El líder intenta superarse |
 | 409 | `PROXY_LIMIT_DECREASE_NOT_ALLOWED` | Intento de bajar el máximo |
 | 409 | `PROXY_NOT_ENABLED` | Se intenta fijar un máximo proxy en una subasta sin `proxy_enabled` |
+| 409 | `MECHANISM_MISMATCH` | Operación de otro mecanismo (puja en sobre cerrado u oferta sellada en ascendente) |
+| 409 | `RUC_ALREADY_REGISTERED` | Ya existe una organización con ese RUC |
+| 409 | `ALREADY_MEMBER` | El usuario ya es miembro activo de la organización |
+| 409 | `ALREADY_REGISTERED` | La organización ya está inscrita en esa subasta inversa |
+| 409 | `PROCUREMENT_HAS_AUCTION` | La necesidad B2B ya tiene una subasta asociada |
+| 409 | `NOT_REVEALED_YET` | `candle-proof` pedido antes del cierre de la subasta |
+| 409 | `ALREADY_RATED` | Ya calificaste esa subasta |
+| 409 | `OPEN_ACTIVITY` | Pasar a staff a un usuario con membresías u operaciones abiertas |
+| 409 | `SLUG_ALREADY_EXISTS` | Categoría con un slug repetido |
 | 409 | `RULES_LOCKED` | Edición de reglas tras publicar |
 | 409 | `LISTING_LOCKED` | Edición de una publicación con subasta no terminal (`draft`, `scheduled`, `active`) |
 | 409 | `LISTING_HAS_OPEN_AUCTION` | La publicación ya tiene una subasta `draft`, `scheduled` o `active` |
@@ -62,6 +71,7 @@
 | 409 | `EMAIL_ALREADY_REGISTERED` | Registro duplicado |
 | 429 | `RATE_LIMITED` | Throttling o login bloqueado 15 min tras 5 fallos por email (`details.retry_after_s`) |
 | 500 | `INTERNAL_ERROR` | Error no controlado (sin detalles internos) |
+| 503 | `STORAGE_UNAVAILABLE` | Supabase Storage no responde (subida de imágenes); el detalle se muestra sin imágenes |
 
 Nunca se incluyen datos privados de otros usuarios en `details`.
 
@@ -177,7 +187,8 @@ Leyenda de acceso: **P** público, **A** usuario autenticado con rol `user`, **D
 | GET | `/admin/users/?q=&role=&status=` | ADM | Búsqueda de usuarios |
 | POST | `/admin/users/{id}/reactivate/` | ADM | `{reason}` |
 | POST | `/admin/users/{id}/role/` | ADM | `{platform_role, reason, password}` (step-up; `LAST_ADMIN`) |
-| GET/POST/PATCH | `/admin/categories/` | ADM | Crear, renombrar, activar/desactivar |
+| GET/POST | `/admin/categories/` | ADM | Listar (incluye inactivas) y crear `{name, slug}` |
+| PATCH | `/admin/categories/{id}/` | ADM | Renombrar o activar/desactivar `{name, is_active}` |
 | GET | `/admin/audit-events/?auction_id=&actor_id=&action=&from=&to=` | ADM | Consulta de auditoría |
 | GET | `/admin/system-health/` | ADM | `job_heartbeat`, cierres pendientes, conteos |
 

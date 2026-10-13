@@ -24,7 +24,22 @@ def config_of(a: Auction) -> AuctionConfig:
         soft_close_window_s=a.soft_close_window_s,
         soft_close_extension_s=a.soft_close_extension_s,
         soft_close_max_total_s=a.soft_close_max_total_s,
+        candle_window_s=a.candle_window_s,
+        candle_close_at=a.candle_close_at,
+        reference_budget=a.reference_budget,
+        min_decrement=a.min_decrement,
+        quantity=_quantity(a),
+        buyer_organization_id=str(a.organization_id) if a.organization_id else None,
     )
+
+
+def _quantity(a: Auction):
+    """Cantidad de la necesidad B2B (la inversa compite por el total sobre esa cantidad)."""
+    if a.mechanism != "reverse" or a.procurement_request_id is None:
+        return None
+    from apps.catalog.models import ProcurementRequest
+
+    return ProcurementRequest.objects.filter(pk=a.procurement_request_id).values_list("quantity", flat=True).first()
 
 
 def to_state(a: Auction, *, leader_proxy_max=None) -> AuctionState:
@@ -35,6 +50,7 @@ def to_state(a: Auction, *, leader_proxy_max=None) -> AuctionState:
         config=config_of(a),
         current_price=a.current_price,
         leader_user_id=str(a.leader_user_id) if a.leader_user_id else None,
+        leader_organization_id=str(a.leader_organization_id) if a.leader_organization_id else None,
         bid_count=a.bid_count,
         leader_proxy_max=leader_proxy_max,
     )

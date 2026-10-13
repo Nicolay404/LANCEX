@@ -138,6 +138,25 @@ def HasOrgCapability(capability: str, organization_param: str = "organization_id
     )
 
 
+class _AnyOrgCapabilityPermission(LancexPermission):
+    organization_scoped = True
+
+    def has_permission(self, request, view) -> bool:
+        if get_capabilities(request).organizations_with(self.required_capability):
+            return True
+        return _deny(request, view, "missing_org_capability", capability=self.required_capability)
+
+
+def HasAnyOrgCapability(capability: str) -> type[LancexPermission]:  # noqa: N802
+    """La capacidad en AL MENOS una organización. Para rutas cuyo `organization_id` se deduce del
+    recurso (p. ej., la compradora de una subasta): el servicio valida la organización concreta."""
+    return type(
+        f"HasAnyOrgCapability[{capability}]",
+        (_AnyOrgCapabilityPermission,),
+        {"required_capability": str(capability)},
+    )
+
+
 class _ByMethodPermission(LancexPermission):
     method_permissions: ClassVar[dict[str, type[LancexPermission]]] = {}
 

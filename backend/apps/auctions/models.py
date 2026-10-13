@@ -18,11 +18,15 @@ PUBLIC_STATUSES = (Status.SCHEDULED, Status.ACTIVE, Status.CLOSED, Status.CANCEL
 
 class AuctionQuerySet(models.QuerySet):
     def visible_to(self, user) -> "AuctionQuerySet":
-        """Publicadas: todos. Borradores: solo su dueño (para el resto, 404)."""
+        """Publicadas: todos. Borradores: su dueño o los miembros activos de la organización dueña (404 al resto)."""
         public = Q(status__in=PUBLIC_STATUSES)
         if user is None or not user.is_authenticated:
             return self.filter(public)
-        return self.filter(public | Q(status=Status.DRAFT, owner_user_id=user.pk))
+        from apps.organizations.models import OrganizationMembership
+
+        my_orgs = OrganizationMembership.objects.filter(user_id=user.pk, status="active").values("organization_id")
+        own_draft = Q(status=Status.DRAFT) & (Q(owner_user_id=user.pk) | Q(organization_id__in=my_orgs))
+        return self.filter(public | own_draft)
 
 
 class Auction(models.Model):
@@ -39,7 +43,14 @@ class Auction(models.Model):
         blank=True,
         related_name="auctions",
     )
-    procurement_request_id = models.UUIDField(null=True, blank=True)
+    procurement_request = models.ForeignKey(
+        "catalog.ProcurementRequest",
+        on_delete=models.DO_NOTHING,
+        db_column="procurement_request_id",
+        null=True,
+        blank=True,
+        related_name="+",
+    )
     mechanism = models.CharField(max_length=20)
     closing_policy = models.CharField(max_length=20)
     proxy_enabled = models.BooleanField(default=False)
@@ -99,7 +110,14 @@ class Bid(models.Model):
     bidder_user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING, db_column="bidder_user_id", related_name="+"
     )
-    organization_id = models.UUIDField(null=True, blank=True)
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.DO_NOTHING,
+        db_column="organization_id",
+        null=True,
+        blank=True,
+        related_name="+",
+    )
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     unit_price = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
     shipping_cost = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
@@ -136,6 +154,79 @@ class ProxyBidLimit(models.Model):
 
     def __str__(self) -> str:
         return f"proxy:{self.auction_id}:{self.user_id}:{self.status}"
+
+
+class SealedOffer(models.Model):
+    """PRIVADO hasta el cierre: ofertas de sobre cerrado (una vigente por participante)."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    auction = models.ForeignKey(Auction, on_delete=models.DO_NOTHING, db_column="auction_id", related_name="+")
+    bidder_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING, db_column="bidder_user_id", related_name="+"
+    )
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    seq = models.IntegerField()
+    is_current = models.BooleanField(default=True)
+    status = models.CharField(max_length=20, default="submitted")
+    idempotency_key = models.UUIDField()
+    submitted_at = models.DateTimeField(db_default=ClockTimestamp())
+    revealed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        managed = False
+        db_table = "sealed_offer"
+
+    def __str__(self) -> str:
+        return f"sealed:{self.auction_id}#{self.seq}"
+
+
+class AuctionParticipant(models.Model):
+    """Inscripción de una organización proveedora en una subasta inversa (REGLAS §7)."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    auction = models.ForeignKey(Auction, on_delete=models.DO_NOTHING, db_column="auction_id", related_name="+")
+    organization = models.ForeignKey(
+        "organizations.Organization", on_delete=models.DO_NOTHING, db_column="organization_id", related_name="+"
+    )
+    registered_by_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING, db_column="registered_by_user_id", related_name="+"
+    )
+    status = models.CharField(max_length=20, default="registered")
+    compliance = models.JSONField(default=list)
+    decision_reason = models.CharField(max_length=300, null=True, blank=True)
+    decided_by_user_id = models.UUIDField(null=True, blank=True)
+    decided_at = models.DateTimeField(null=True, blank=True)
+    registered_at = models.DateTimeField(db_default=ClockTimestamp())
+
+    class Meta:
+        managed = False
+        db_table = "auction_participant"
+
+    def __str__(self) -> str:
+        return f"{self.organization_id} en {self.auction_id} ({self.status})"
+
+
+class Rating(models.Model):
+    """Calificación entre dueño y ganador tras una liquidación final (REGLAS §10)."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    auction = models.ForeignKey(Auction, on_delete=models.DO_NOTHING, db_column="auction_id", related_name="+")
+    rater_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING, db_column="rater_user_id", related_name="+"
+    )
+    ratee_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING, db_column="ratee_user_id", related_name="+"
+    )
+    score = models.SmallIntegerField()
+    comment = models.CharField(max_length=300, default="")
+    created_at = models.DateTimeField(db_default=ClockTimestamp())
+
+    class Meta:
+        managed = False
+        db_table = "rating"
+
+    def __str__(self) -> str:
+        return f"{self.rater_user_id}->{self.ratee_user_id}: {self.score}"
 
 
 class JobHeartbeat(models.Model):

@@ -13,6 +13,7 @@ from apps.core.views import SchemaView
 urlpatterns: list = [
     path("", include("apps.accounts.api.urls")),
     path("", include("apps.catalog.api.urls")),
+    path("", include("apps.organizations.api.urls")),
     path("", include("apps.auctions.api.urls")),
     path("", include("apps.notifications.api.urls")),
     path("", include("apps.moderation.api.urls")),

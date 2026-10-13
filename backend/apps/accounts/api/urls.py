@@ -9,4 +9,5 @@ urlpatterns = [
     path("auth/logout/", views.LogoutView.as_view(), name="auth-logout"),
     path("auth/me/", views.MeView.as_view(), name="auth-me"),
     path("auth/password/", views.PasswordView.as_view(), name="auth-password"),
+    path("users/<uuid:user_id>/", views.PublicProfileView.as_view(), name="user-profile"),
 ]

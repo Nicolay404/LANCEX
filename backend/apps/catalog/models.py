@@ -58,3 +58,52 @@ class Listing(models.Model):
 
     def __str__(self) -> str:
         return self.title
+
+
+class ProcurementRequest(models.Model):
+    """Necesidad B2B de una organización compradora verificada (REGLAS §7). Detalle público."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    buyer_organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.DO_NOTHING,
+        db_column="buyer_organization_id",
+        related_name="+",
+    )
+    created_by_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING, db_column="created_by_user_id", related_name="+"
+    )
+    title = models.CharField(max_length=120)
+    specifications = models.TextField()
+    quantity = models.DecimalField(max_digits=14, decimal_places=3)
+    unit = models.CharField(max_length=20)
+    mandatory_requirements = models.JSONField(default=list)
+    delivery_deadline = models.DateField()
+    delivery_location = models.CharField(max_length=120)
+    created_at = models.DateTimeField(db_default=ClockTimestamp())
+
+    class Meta:
+        managed = False
+        db_table = "procurement_request"
+
+    def __str__(self) -> str:
+        return self.title
+
+
+class ListingImage(models.Model):
+    """Imagen en el bucket privado `listing-images`. La ruta la genera el servidor."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    listing = models.ForeignKey(Listing, on_delete=models.DO_NOTHING, db_column="listing_id", related_name="images")
+    storage_path = models.TextField(unique=True)
+    content_type = models.CharField(max_length=20)
+    size_bytes = models.IntegerField()
+    position = models.SmallIntegerField()
+    created_at = models.DateTimeField(db_default=ClockTimestamp())
+
+    class Meta:
+        managed = False
+        db_table = "listing_image"
+
+    def __str__(self) -> str:
+        return self.storage_path

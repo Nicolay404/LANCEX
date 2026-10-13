@@ -159,3 +159,72 @@
 - Pruebas ejecutadas y resultado real: `ruff check` y `format --check` limpios; `manage.py check` sin errores; `LANCEX_REQUIRE_DB=1 pytest`: **329 passed** (casos obligatorios de §3, soft close con tope, no fuga del máximo proxy en detalle/live/bids/result/proxy-limit ajeno/auditoría/notificaciones, notificaciones outbid/won/lost/owner/cancelled/watch, reportes con límites, 8 proxies en paralelo con un solo límite vivo).
 - Riesgos/bloqueos: Supabase aún sin migración aplicada (BD). `watch_auction_ending` depende de que alguien ejecute `close_due_auctions --loop`.
 - Handoff/siguiente paso: FE (LX-35, LX-38) y BD (LX-34). Fase 4 tras integrar la Fase 3 en `main`.
+
+## 2026-10-12T19:55:50-05:00: CIERRE: Fase 4 backend (LX-40)
+- Humano responsable: Nicolay.
+- Herramienta/modelo IA: Claude (claude-opus-5-5).
+- Rama y commit: `feat/architect/fase-4` (desde `main` con la Fase 3) → `backend-lancex`.
+- Objetivo: sobre cerrado de primer precio según REGLAS §6 y la matriz de visibilidad.
+- Archivos/documentos modificados: `domain/mechanisms/sealed.py`, `domain/registry.py`; modelo `SealedOffer`; servicios `sealed.py`, `closing.py` (registros por mecanismo + revelación), `lifecycle.py` (cancelación con `active_offer_count`); `api/presenters.py` (`_counters` como única fuente de precio/contadores, ranking por audiencia), `api/views.py` (`SealedOfferView`, `/bids/` sellado), `api/serializers.py` (`min_increment` opcional, `SealedOfferInput`), `api/urls.py`; pruebas `test_domain_sealed.py`, `test_sealed_flow.py`, concurrencia; matriz de endpoints; contrato (`MECHANISM_MISMATCH`); handoffs FE y BD; estado compartido.
+- Decisiones/supuestos:
+  - Canal lateral: `version` solo cambia si cambia `active_offer_count` (editar no altera el ETag).
+  - `reserve_met` en `null` antes del cierre en sellado (revelaría si alguna oferta supera la reserva).
+  - Revelación solo al MATERIALIZAR el cierre; con `result_pending` aún no se muestra nada.
+  - `bid_count` es el contador interno de versiones (para `seq`); nunca se publica en sellado.
+  - Ranking: participantes (incluidos quienes retiraron su oferta) con seudónimos; dueño y staff con identidad; público solo precio final y número de ofertas.
+  - Auditoría `sealed_offer_*` sin importes; `sealed_offers_revealed` con número de ofertas.
+- Pruebas ejecutadas y resultado real: ruff limpio; manage.py check sin errores; LANCEX_REQUIRE_DB=1 pytest: 355 passed (incluye no fuga de importes sellados en detalle/live/bids/result/catálogo/auditoría para público, otro participante, dueño y admin; ETag sin cambios al editar; ranking por audiencia; empate por seq vigente; 5 ofertas simultáneas -> 1 vigente).
+- Riesgos/bloqueos: verificación de la base Supabase pendiente de la contraseña de `lancex_app` (la compañera ya aplicó las tablas, según el humano).
+- Handoff/siguiente paso: FE (LX-42), BD (LX-41/43). Fase 5 tras integrar la Fase 4 en `main`.
+
+## 2026-10-12T20:13:16-05:00: CIERRE: Fase 5 backend (LX-50, LX-51, LX-54)
+- Humano responsable: Nicolay.
+- Herramienta/modelo IA: Claude (claude-opus-5-5).
+- Rama y commit: `feat/architect/fase-5` (desde `main` con la Fase 4) → `backend-lancex`.
+- Autorización: el humano pidió "Ahora sí continúa con las demás fases" tras integrar la Fase 4. Se interpreta como autorización explícita para encadenar las Fases 5, 6 y 7 sin esperar el merge de cada una (excepción a la regla de AGENTS.md, registrada aquí). Cada fase va en su propio commit con pruebas completas.
+- Objetivo: organizaciones B2B, necesidades, inscripción/calificación y subasta inversa según REGLAS §7, §8 y §15.
+- Archivos/documentos modificados: dominio `mechanisms/reverse.py`, `money.py` (precio unitario de 4 decimales, envío ≥ 0, `reverse_total`), `state.py`, `registry.py`, `proxy.py` (argumentos con nombre); `core/permissions.py` (`HasAnyOrgCapability`); `organizations/services` y `api`; `catalog` (`ProcurementRequest`, servicio y API); `auctions` (`AuctionParticipant`, FK `procurement_request` y `Bid.organization`, `visible_to` con miembros de la organización dueña, `services/participants.py`, inversa en `lifecycle`, `bidding`, `closing`, `snapshot`, presenters y vistas); `audit` (`organization_updated`); pruebas `test_domain_reverse.py`, `test_reverse_flow.py`; matriz; contrato; REGLAS §12; handoffs; estado compartido.
+- Decisiones/supuestos:
+  - Verificación de organizaciones por moderador adelantada de LX-77: sin ella la Fase 5 no es usable.
+  - Endpoints de organización con `HasAnyOrgCapability`: quien no es miembro recibe 404 desde el servicio (sin enumeración).
+  - Cualquier miembro activo de la compradora gestiona la subasta inversa (ROLES §4); el dueño es quien la creó.
+  - El proveedor que pertenece a varias organizaciones admitidas debe indicar `organization_id` en la oferta.
+  - Congelamiento en `starts_at`: el estado efectivo se calcula al leer (`rejected`/`not_reviewed`) y el job lo materializa.
+  - Seudónimos por organización ("Proveedor N"); el desglose (precio unitario, envío) solo para la propia organización; la compradora ve identidades al cerrar.
+  - Acción de auditoría nueva `organization_updated` (no estaba en el catálogo).
+- Pruebas ejecutadas y resultado real: ruff limpio; `manage.py check` sin errores; `LANCEX_REQUIRE_DB=1 pytest`: **392 passed** (fórmula con ROUND_HALF_UP, `OFFER_ABOVE_MAXIMUM` con máximo exacto aceptado, `ALREADY_LEADING` por organización, `NOT_ADMITTED`, compradora no oferta, `CONFLICT_OF_INTEREST`, `LAST_OWNER`, step-up, vuelta a `pending`, `not_reviewed`, visibilidad durante y tras el cierre, licitación desierta). Un fallo intermedio era de la prueba (nota de verificación de 2 caracteres).
+- Riesgos/bloqueos: ninguno nuevo; Supabase pendiente de la contraseña de `lancex_app`.
+- Handoff/siguiente paso: FE (LX-53), BD (LX-52). Fase 6 (vela).
+
+## 2026-10-12T20:17:21-05:00: CIERRE: Fase 6 backend (LX-60, script de LX-61)
+- Humano responsable: Nicolay.
+- Herramienta/modelo IA: Claude (claude-opus-5-5).
+- Rama y commit: `feat/architect/fase-5` (continuación autorizada) → `backend-lancex`.
+- Objetivo: cierre por vela verificable según REGLAS §5.
+- Archivos/documentos modificados: `domain/closing/candle.py` (compromiso, instante HMAC, verificación, corte retroactivo), `state.py`, `registry.py`; `services/lifecycle.py` (semilla con `secrets` al publicar; `rules_snapshot` con compromiso, nunca la semilla), `closing.py` (`counted = false` y `candle_revealed`), `snapshot.py`; presenters (`candle_info`, `candle_proof`, precio oficial tras el corte, `counted` oculto hasta el cierre), vista `CandleProofView`, serializers; `scripts/verify_candle.py`; pruebas `test_domain_candle.py`, `test_candle_flow.py`; matriz; contrato (`NOT_REVEALED_YET`); handoffs; estado.
+- Decisiones/supuestos:
+  - La ventana se ancla en `original_ends_at` (fijado al publicar) para que el instante sea reproducible.
+  - `counted` se publica como `null` mientras la subasta está abierta: un `false` revelaría el instante secreto.
+  - Tras el cierre, el precio público es `final_price` (el del ganador dentro del corte), no la última puja.
+  - La semilla se genera en el servicio; el dominio es determinista y probado sin aleatoriedad.
+- Pruebas ejecutadas y resultado real: ruff limpio; `LANCEX_REQUIRE_DB=1 pytest`: **412 passed** (instante determinista y dentro de la ventana, verificación con semilla falsa, límites, no fuga de semilla/instante en API, `rules_snapshot` y auditoría para público/dueño/admin, corte retroactivo con `counted = false`, script independiente con salida 0).
+- Riesgos/bloqueos: límite declarado en REGLAS §5 (quien accede a la base podría leer la semilla antes).
+- Handoff/siguiente paso: FE (LX-62), BD (LX-61). Fase 7.
+
+## 2026-10-12T20:26:42-05:00: CIERRE: Fase 7 backend (LX-70, LX-71, LX-72, LX-77, LX-79) + seed_demo y bootstrap_admin
+- Humano responsable: Nicolay.
+- Herramienta/modelo IA: Claude (claude-opus-5-5).
+- Rama y commit: `feat/architect/fase-5` (continuación autorizada) → `backend-lancex`.
+- Objetivo: cerrar el backend del contrato v1.
+- Archivos/documentos modificados: `catalog/services/{storage,images}.py` (puerto `ObjectStorage` + adaptador Supabase con `httpx`), modelo `ListingImage`, vistas de imágenes; `auctions/services/post_close.py`, modelo `Rating`, vistas de liquidación y calificación, perfil público `GET /users/{id}/`; `moderation/services/staff.py` y `api/staff_views.py` (moderación y administración); comandos `bootstrap_admin` y `seed_demo`; `requirements.txt` (`httpx==0.28.1`, permitido por ADR-0004); settings `SUPABASE`; pruebas `test_images.py`, `test_post_close.py`, `test_staff.py`, `test_commands.py`; matriz de endpoints; contrato; README; configuración local; handoffs; estado.
+- Decisiones/supuestos:
+  - Imágenes: tipo y tamaño se validan al pedir la URL y otra vez con los metadatos REALES del objeto (HEAD); si no cumplen, el objeto se borra (T17). Si Storage falla, el detalle se sirve sin imágenes.
+  - Suspensión (ROLES §7): cancela `draft/scheduled` propias (`owner_suspended`), cancela proxies activos, retira ofertas selladas vigentes en subastas abiertas (ajusta `active_offer_count`), revoca sesiones; las activas siguen.
+  - Un admin no puede ser suspendido (se usa el cambio de rol); admin sí suspende moderadores.
+  - Pasar a staff exige no tener membresías ni operaciones abiertas (`OPEN_ACTIVITY`).
+  - `PATCH /admin/categories/{id}/` en vez de un PATCH sin id (contrato actualizado).
+  - El reportante no recibe notificación al resolverse (el tipo no está en el catálogo de REGLAS §11): pendiente de decisión.
+  - `seed_demo` y `bootstrap_admin` sin contraseña por defecto (la base es compartida).
+- Pruebas ejecutadas y resultado real: ruff limpio; `manage.py check` sin errores; `LANCEX_REQUIRE_DB=1 pytest`: **445 passed**; `seed_demo` sobre una base recién creada: 5 subastas (ascendente fija, proxy + soft close, sellada, vela, inversa) y 6 usuarios; segunda ejecución sin duplicados.
+- Riesgos/bloqueos: Storage real no probado (sin bucket ni claves); notificación al reportante pendiente de decisión; QA-05 (desempeño) no medido.
+- Handoff/siguiente paso: PR `backend-lancex` → `main`; humano: contraseña `lancex_app`, bucket `listing-images`, claves de Storage.

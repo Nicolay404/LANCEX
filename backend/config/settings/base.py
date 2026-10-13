@@ -162,6 +162,14 @@ LANCEX_SERVE_SCHEMA = env.bool("LANCEX_SERVE_SCHEMA", default=DEBUG)
 # ruta para que apps.core no dependa de apps de dominio.
 LANCEX_PRINCIPAL_LOADER = "apps.accounts.principal.load_principal"
 
+# --- Supabase Storage (ADR-0004 §6): solo backend, nunca en el frontend ----------------
+SUPABASE = {
+    "URL": env("SUPABASE_URL", default=""),
+    "SERVICE_ROLE_KEY": env("SUPABASE_SERVICE_ROLE_KEY", default=""),
+    "IMAGES_BUCKET": env("SUPABASE_IMAGES_BUCKET", default="listing-images"),
+}
+LANCEX_STORAGE_FACTORY = None  # las pruebas inyectan un doble
+
 # --- Logging (ADR-0002) -----------------------------------------------------------------
 FIRESTORE_LOGS = {
     "ENABLED": env.bool("FIRESTORE_LOGS_ENABLED", default=False),

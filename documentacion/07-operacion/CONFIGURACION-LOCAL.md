@@ -69,7 +69,8 @@ cd backend && pytest
 ## Datos de demostración
 
 ```bash
-python manage.py seed_demo           # solo DML, idempotente
+$env:LANCEX_DEMO_PASSWORD="<elige una>"   # obligatoria: sin valor por defecto
+python manage.py seed_demo           # solo DML, idempotente; usuarios <nombre>@demo.lancex.test
 ```
 
 ## Problemas frecuentes

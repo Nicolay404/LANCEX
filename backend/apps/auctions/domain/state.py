@@ -48,6 +48,14 @@ class AuctionConfig:
     soft_close_window_s: int | None = None
     soft_close_extension_s: int | None = None
     soft_close_max_total_s: int | None = None
+    # Vela (candle_close_at es PRIVADO hasta el cierre: solo lo usa el dominio al cerrar)
+    candle_window_s: int | None = None
+    candle_close_at: datetime | None = None
+    # Inversa B2B
+    reference_budget: Decimal | None = None
+    min_decrement: Decimal | None = None
+    quantity: Decimal | None = None
+    buyer_organization_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,6 +68,7 @@ class AuctionState:
     config: AuctionConfig
     current_price: Decimal | None = None
     leader_user_id: str | None = None
+    leader_organization_id: str | None = None
     bid_count: int = 0
     # Máximo proxy vivo del líder (PRIVADO: solo lo usa el dominio dentro de la transacción).
     leader_proxy_max: Decimal | None = None
@@ -87,6 +96,9 @@ class BidIntent:
     bidder_user_id: str
     amount: Decimal
     is_proxy: bool = False
+    organization_id: str | None = None  # proveedor en la inversa
+    unit_price: Decimal | None = None
+    shipping_cost: Decimal | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,6 +108,9 @@ class NewBid:
     bidder_user_id: str
     amount: Decimal
     source: str = "manual"
+    organization_id: str | None = None
+    unit_price: Decimal | None = None
+    shipping_cost: Decimal | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -103,6 +118,7 @@ class BidOutcome:
     bids: tuple[NewBid, ...]
     current_price: Decimal
     leader_user_id: str
+    leader_organization_id: str | None = None
     # Usuarios cuyo límite proxy queda agotado tras esta operación.
     exhausted_proxy_user_ids: tuple[str, ...] = ()
 
@@ -113,6 +129,8 @@ class BidRecord:
     bidder_user_id: str
     amount: Decimal
     counted: bool = True
+    organization_id: str | None = None
+    accepted_at: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -120,6 +138,7 @@ class Result:
     outcome: str
     winner_user_id: str | None = None
     final_price: Decimal | None = None
+    winner_organization_id: str | None = None
 
 
 def effective_status(state: AuctionState, effective_end: datetime | None, now: datetime) -> str:

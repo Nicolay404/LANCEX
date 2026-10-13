@@ -11,6 +11,42 @@
 
 ## Handoffs activos
 
+- Fecha/hora: 2026-10-12T20:26:42-05:00
+- Issue/PR: LX-13 (seed), LX-75, LX-80 (Fase 7)
+- Para rol: Base de datos / seguridad
+- Estado: listo para consumir
+- Contexto: `seed_demo` (solo DML, idempotente, se niega con `APP_ENV=production`, contraseña obligatoria por variable) y `bootstrap_admin` (solo el primer admin) implementados por ARQ para desbloquear al frontend. Modelos nuevos `ListingImage` y `Rating`. Base de LX-80 cubierta: abuso de staff (moderador no suspende staff, último admin, step-up) y sesiones (suspensión y cambio de rol las revocan).
+- Archivos, tablas o endpoints afectados: `listing_image` (DELETE usado al borrar imagen), `rating`, `report` (resolución), `app_user` (estado/rol), `proxy_bid_limit`/`sealed_offer` (efectos de suspensión), `job_heartbeat`.
+- Acción requerida: revisar el seed (puede reemplazar al tuyo de LX-13); LX-75 (desempeño y caída de Firestore); crear el bucket PRIVADO `listing-images` en Supabase Storage y compartir `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` por el canal privado. Sin cambios de esquema.
+- Cómo validar: `LANCEX_REQUIRE_DB=1 python -m pytest -q` (445 passed).
+
+- Fecha/hora: 2026-10-12T20:17:21-05:00
+- Issue/PR: LX-61 (verificación de vela, QA-07)
+- Para rol: Base de datos
+- Estado: listo para consumir
+- Contexto: `scripts/verify_candle.py` (solo biblioteca estándar) ya existe y una prueba lo ejecuta contra una subasta real cerrada. El cierre marca `counted = false` en las pujas posteriores al instante (único UPDATE permitido sobre `bid`).
+- Archivos, tablas o endpoints afectados: `auction.candle_*`, `bid.counted`, `audit_event` (`candle_revealed` con semilla y compromiso tras el cierre).
+- Acción requerida: LX-61 completar QA-07 (recalcular el resultado desde `bid` con el corte y compararlo con `auction`). Sin cambios de esquema.
+- Cómo validar: `LANCEX_REQUIRE_DB=1 python -m pytest tests/auctions/test_candle_flow.py -q`.
+
+- Fecha/hora: 2026-10-12T20:13:16-05:00
+- Issue/PR: LX-52 (pruebas B2B)
+- Para rol: Base de datos
+- Estado: listo para consumir
+- Contexto: modelos nuevos `ProcurementRequest`, `AuctionParticipant`; `Auction.procurement_request` y `Bid.organization` pasan a FK (misma columna, sin cambio de esquema). La fórmula del total, la admisión congelada (`not_reviewed`) y `NOT_ADMITTED` ya tienen pruebas.
+- Archivos, tablas o endpoints afectados: `organization`, `organization_membership`, `procurement_request`, `auction_participant`, `bid` (`organization_id`, `unit_price`, `shipping_cost`). El job ejecuta `UPDATE auction_participant ... not_reviewed`.
+- Acción requerida: ampliar LX-52 con casos límite de redondeo y cantidades con 3 decimales. Sin cambios de esquema.
+- Cómo validar: `LANCEX_REQUIRE_DB=1 python -m pytest tests/auctions/test_reverse_flow.py tests/auctions/test_domain_reverse.py -q`.
+
+- Fecha/hora: 2026-10-12T19:55:50-05:00
+- Issue/PR: LX-41, LX-43 (sobre cerrado)
+- Para rol: Base de datos / seguridad
+- Estado: listo para consumir
+- Contexto: ya cubierto por ARQ: empate por `seq` de la versión vigente, no fuga antes del cierre (API, auditoría, ETag), 5 ediciones simultáneas -> una sola vigente. Modelo nuevo `SealedOffer` (`managed = False`), cubierto por la prueba de deriva.
+- Archivos, tablas o endpoints afectados: `sealed_offer`, `auction.active_offer_count`, `audit_event` (`sealed_offer_*` sin importes, `sealed_offers_revealed`).
+- Acción requerida: LX-43 ampliar QA-02 a logs de Firestore (los rechazos solo registran `error_code`). Sin cambios de esquema.
+- Cómo validar: `LANCEX_REQUIRE_DB=1 python -m pytest tests/auctions -q`.
+
 - Fecha/hora: 2026-10-11T22:27:02-05:00
 - Issue/PR: LX-34 (invariante proxy bajo concurrencia)
 - Para rol: Base de datos

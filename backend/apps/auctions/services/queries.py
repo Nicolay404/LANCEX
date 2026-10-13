@@ -21,7 +21,12 @@ OPEN_PUBLISHED = (Status.SCHEDULED, Status.ACTIVE)
 
 
 def get_visible(user, auction_id) -> Auction:
-    auction = Auction.objects.visible_to(user).select_related("listing__category").filter(pk=auction_id).first()
+    auction = (
+        Auction.objects.visible_to(user)
+        .select_related("listing__category", "procurement_request__buyer_organization")
+        .filter(pk=auction_id)
+        .first()
+    )
     if auction is None:
         raise NotFound()
     return auction
@@ -43,7 +48,7 @@ def effective_status_filter(status: str, now: datetime) -> Q:
 
 
 def catalog(user, params, now: datetime) -> QuerySet:
-    qs = Auction.objects.visible_to(user).select_related("listing__category")
+    qs = Auction.objects.visible_to(user).select_related("listing__category", "procurement_request__buyer_organization")
     mine = params.get("mine")
     if mine:
         if user is None or not user.is_authenticated:
