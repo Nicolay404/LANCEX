@@ -13,6 +13,8 @@ export interface AppNotification {
     outcome?: string
     ends_at?: string
     reason?: string
+    organization_name?: string
+    target_type?: string
   }
   created_at: IsoDateTime
   read_at: IsoDateTime | null

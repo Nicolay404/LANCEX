@@ -21,7 +21,7 @@ export function NotificationBell() {
       to="/notificaciones"
       aria-label={label}
       title={label}
-      className="relative inline-flex size-8 items-center justify-center rounded-md hover:bg-accent"
+      className="relative inline-flex size-9 items-center justify-center rounded-lg hover:bg-accent"
     >
       <svg
         aria-hidden="true"

@@ -8,8 +8,19 @@ import { formatMoney } from '@/lib/money'
 import { auctionKeys, fetchBids } from './api'
 import { SOURCE_LABEL } from './labels'
 
-/** Historial visible: seudónimos ("Postor N" / "Tú"); se recarga cuando cambia `version`. */
-export function BidHistory({ auctionId, sealed }: { auctionId: string; sealed: boolean }) {
+/**
+ * Historial visible: seudónimos ("Postor N" / "Tú"; en la inversa "Proveedor N" / "Tu organización");
+ * se recarga cuando cambia `version`. El desglose de la inversa solo llega para tu organización.
+ */
+export function BidHistory({
+  auctionId,
+  sealed,
+  reverse = false,
+}: {
+  auctionId: string
+  sealed: boolean
+  reverse?: boolean
+}) {
   const bids = useQuery({
     queryKey: auctionKeys.bids(auctionId),
     queryFn: ({ signal }) => fetchBids(auctionId, signal),
@@ -17,7 +28,9 @@ export function BidHistory({ auctionId, sealed }: { auctionId: string; sealed: b
 
   return (
     <section className="space-y-3">
-      <h2 className="text-lg font-medium">Historial de pujas</h2>
+      <h2 className="text-lg font-medium">
+        {reverse ? 'Historial de ofertas' : 'Historial de pujas'}
+      </h2>
       {bids.isPending ? (
         <PageLoading />
       ) : bids.isError ? (
@@ -26,7 +39,9 @@ export function BidHistory({ auctionId, sealed }: { auctionId: string; sealed: b
         <p className="text-sm text-muted-foreground">
           {sealed
             ? 'Las ofertas son secretas hasta el cierre.'
-            : 'Todavía no hay pujas. ¡Puedes ser la primera persona en pujar!'}
+            : reverse
+              ? 'Todavía no hay ofertas.'
+              : 'Todavía no hay pujas. ¡Puedes ser la primera persona en pujar!'}
         </p>
       ) : (
         <div className="overflow-x-auto rounded-lg border">
@@ -34,9 +49,11 @@ export function BidHistory({ auctionId, sealed }: { auctionId: string; sealed: b
             <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
               <tr>
                 <th className="px-3 py-2 font-medium">#</th>
-                <th className="px-3 py-2 font-medium">Postor</th>
-                <th className="px-3 py-2 text-right font-medium">Importe</th>
-                <th className="px-3 py-2 font-medium">Tipo</th>
+                <th className="px-3 py-2 font-medium">{reverse ? 'Proveedor' : 'Postor'}</th>
+                <th className="px-3 py-2 text-right font-medium">
+                  {reverse ? 'Total' : 'Importe'}
+                </th>
+                <th className="px-3 py-2 font-medium">{reverse ? 'Desglose' : 'Tipo'}</th>
                 <th className="px-3 py-2 font-medium">Hora</th>
               </tr>
             </thead>
@@ -44,11 +61,36 @@ export function BidHistory({ auctionId, sealed }: { auctionId: string; sealed: b
               {bids.data.results.map((b) => (
                 <tr key={b.seq} className="border-t">
                   <td className="px-3 py-2 tabular-nums text-muted-foreground">{b.seq}</td>
-                  <td className={b.bidder === 'Tú' ? 'px-3 py-2 font-medium' : 'px-3 py-2'}>
+                  <td
+                    className={
+                      b.bidder === 'Tú' || b.bidder === 'Tu organización'
+                        ? 'px-3 py-2 font-medium'
+                        : 'px-3 py-2'
+                    }
+                  >
                     {b.bidder}
+                    {b.bidder_identity && (
+                      <span className="block text-xs text-muted-foreground">
+                        {b.bidder_identity.legal_name}
+                      </span>
+                    )}
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums">{formatMoney(b.amount)}</td>
-                  <td className="px-3 py-2">{SOURCE_LABEL[b.source] ?? b.source}</td>
+                  <td className="px-3 py-2">
+                    {reverse
+                      ? b.unit_price
+                        ? `${b.unit_price} c/u + envío ${formatMoney(b.shipping_cost)}`
+                        : '—'
+                      : b.source && (SOURCE_LABEL[b.source] ?? b.source)}
+                    {b.counted === false && (
+                      <span
+                        className="ml-2 rounded bg-muted px-1.5 text-xs text-muted-foreground"
+                        title="Llegó después del instante secreto de la vela"
+                      >
+                        No contó
+                      </span>
+                    )}
+                  </td>
                   <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">
                     {formatDateTime(b.accepted_at)}
                   </td>

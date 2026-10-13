@@ -59,7 +59,7 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="max-h-[90svh] w-full max-w-md overflow-y-auto rounded-xl border bg-background p-5 shadow-lg"
+        className="max-h-[90svh] w-full max-w-md overflow-y-auto rounded-2xl border bg-card p-6 shadow-2xl"
       >
         <div className="mb-4 flex items-start justify-between gap-4">
           <h2 id={titleId} className="text-lg font-semibold">

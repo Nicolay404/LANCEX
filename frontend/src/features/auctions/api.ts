@@ -37,6 +37,8 @@ export function fetchCatalog(f: CatalogFilters, signal?: AbortSignal) {
       page: f.page && f.page > 1 ? f.page : undefined,
       page_size: f.page_size ?? 12,
       mine: f.mine,
+      organization: f.organization,
+      seller: f.seller,
     },
   })
 }
@@ -137,3 +139,21 @@ export const withdrawSealedOffer = (id: Uuid) => api.delete<void>(path(id, 'seal
 
 export const fetchSealedRanking = (id: Uuid, signal?: AbortSignal) =>
   api.get<Paginated<SealedRankItem>>(path(id, 'bids/'), { signal })
+
+/** Liquidación (solo el dueño, solo `awarded`, una vez): `completed` o `failed` con motivo. */
+export const updateSettlement = (
+  id: Uuid,
+  settlement_status: 'completed' | 'failed',
+  settlement_note: string,
+) =>
+  api.patch<{ settlement_status: string; settlement_note: string | null }>(
+    path(id, 'settlement/'),
+    {
+      settlement_status,
+      settlement_note,
+    },
+  )
+
+/** Calificación a la contraparte (dueño o ganador, una vez, con liquidación final). */
+export const submitRating = (id: Uuid, score: number, comment: string) =>
+  api.post<{ id: Uuid; score: number }>(path(id, 'rating/'), { score, comment })

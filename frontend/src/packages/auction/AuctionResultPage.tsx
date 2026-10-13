@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 
 import { isApiError } from '@/api/errors'
@@ -6,7 +7,10 @@ import { NotFoundPage } from '@/app/pages/NotFoundPage'
 import { ErrorAlert } from '@/components/ErrorAlert'
 import { PageLoading } from '@/components/PageLoading'
 import { Alert } from '@/components/ui/alert'
-import { auctionKeys, fetchAuction, fetchResult } from '@/features/auctions/api'
+import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { auctionKeys, fetchAuction, fetchResult, updateSettlement } from '@/features/auctions/api'
 import { MECHANISM_LABEL } from '@/features/auctions/labels'
 import { SealedRanking } from '@/features/auctions/SealedRanking'
 import { StatusBadge } from '@/features/auctions/StatusBadge'
@@ -59,6 +63,14 @@ function ResultView({ a, r }: { a: AuctionDetail; r: AuctionResult }) {
         <p className="text-sm text-muted-foreground">{MECHANISM_LABEL[a.mechanism]}</p>
       </header>
       <Outcome a={a} r={r} />
+      {a.closing_policy === 'candle' && r.status === 'closed' && !r.result_pending && (
+        <Link
+          to={`/subastas/${a.id}/verificar-vela`}
+          className="inline-block text-sm underline underline-offset-4"
+        >
+          Verificar el cierre por vela
+        </Link>
+      )}
       {a.mechanism === 'sealed' && r.status === 'closed' && !r.result_pending && (
         <SealedRanking auctionId={a.id} closed />
       )}
@@ -102,6 +114,7 @@ function Outcome({ a, r }: { a: AuctionDetail; r: AuctionResult }) {
             {r.winner_organization && (
               <p className="text-sm">Proveedor ganador: {r.winner_organization.legal_name}</p>
             )}
+            {r.winner_pseudonym && <p className="text-sm">Ganador: {r.winner_pseudonym}</p>}
           </>
         ) : (
           <>
@@ -161,9 +174,100 @@ function ViewerOutcome({ a, r }: { a: AuctionDetail; r: AuctionResult }) {
           </p>
         </section>
       )}
+      {is_owner && r.outcome === 'awarded' && r.settlement_status === 'pending' && (
+        <SettlementPanel auctionId={a.id} />
+      )}
+      {r.viewer.can_rate && (
+        <Button asChild>
+          <Link to={`/calificar/${a.id}`}>Calificar {is_owner ? 'al ganador' : 'al vendedor'}</Link>
+        </Button>
+      )}
+      {r.viewer.my_rating && (
+        <p className="text-sm text-muted-foreground">
+          Tu calificación: <Stars score={r.viewer.my_rating.score} />
+          {r.viewer.my_rating.comment && ` · ${r.viewer.my_rating.comment}`}
+        </p>
+      )}
       {is_owner && !r.contact && a.mechanism !== 'reverse' && r.outcome === 'awarded' && (
         <p className="text-sm text-muted-foreground">El contacto del ganador aparecerá aquí.</p>
       )}
     </div>
+  )
+}
+
+function Stars({ score }: { score: number }) {
+  return (
+    <span aria-label={`${score} de 5`} className="text-amber-600">
+      {'★'.repeat(score)}
+      <span className="text-muted-foreground">{'☆'.repeat(5 - score)}</span>
+    </span>
+  )
+}
+
+/** Liquidación: el dueño registra si el trato se concretó. Es final (REGLAS §10). */
+function SettlementPanel({ auctionId }: { auctionId: string }) {
+  const queryClient = useQueryClient()
+  const [mode, setMode] = useState<'idle' | 'completed' | 'failed'>('idle')
+  const [note, setNote] = useState('')
+  const mutation = useMutation({
+    mutationFn: () =>
+      updateSettlement(auctionId, mode === 'failed' ? 'failed' : 'completed', note.trim()),
+    onSuccess: () => {
+      setMode('idle')
+      void queryClient.invalidateQueries({ queryKey: auctionKeys.result(auctionId) })
+    },
+  })
+  return (
+    <section className="space-y-3 rounded-xl border p-4">
+      <h2 className="font-medium">¿Se concretó la venta?</h2>
+      <p className="text-sm text-muted-foreground">
+        Registra el resultado cuando la entrega y el pago se hayan resuelto. Es definitivo y
+        habilita las calificaciones.
+      </p>
+      {mode === 'idle' ? (
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" onClick={() => setMode('completed')}>
+            Sí, se concretó
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setMode('failed')}>
+            No se concretó
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {mode === 'failed' && (
+            <>
+              <Label htmlFor="settlement-note">¿Qué pasó?</Label>
+              <Textarea
+                id="settlement-note"
+                rows={2}
+                maxLength={300}
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+              />
+            </>
+          )}
+          <p className="text-sm">
+            {mode === 'completed'
+              ? 'Confirmas que la venta se concretó. No se puede cambiar después.'
+              : 'Confirmas que la venta no se concretó. No se puede cambiar después.'}
+          </p>
+          {mutation.isError && <ErrorAlert error={mutation.error} title="No se pudo guardar" />}
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant={mode === 'failed' ? 'destructive' : 'default'}
+              disabled={mutation.isPending || (mode === 'failed' && note.trim().length < 3)}
+              onClick={() => mutation.mutate()}
+            >
+              {mutation.isPending ? 'Guardando…' : 'Confirmar'}
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setMode('idle')}>
+              Volver
+            </Button>
+          </div>
+        </div>
+      )}
+    </section>
   )
 }

@@ -314,3 +314,223 @@
   - E2E Chromium contra backend real (Postgres local + `seed_demo`), sobre cerrado real de 2 min 20 s, en dos fases: 11/11 OK: explicación visible; validación de oferta mínima; carla oferta $95; diego oferta $90 y la reemplaza por $120 con confirmación; carla ve "2 ofertas" por polling; el importe de diego no aparece en la página de carla; sin "Vas ganando/Te superaron"; al cierre el público ve $120 y 2 ofertas sin ranking; carla ve puesto 2 con "Tú" y "Postor 2"; beto (dueño) ve las identidades y el contacto de diego.
 - Riesgos/bloqueos: ninguno. La revisión de no fuga en API/logs/auditoría es LX-43 (SEC).
 - Handoff/siguiente paso: commit + PR. Siguiente FE según el plan: Fase 5 (LX-53, B2B: organizaciones, necesidades y subasta inversa).
+
+## 2026-10-12T23:05:00-05:00: INICIO: LX-62
+- Humano responsable: Maria (FE)
+- Herramienta/modelo IA (si se conoce): Claude (Cowork), modelo configurado claude-opus-5-5
+- Rama y commit: `frontend-lancex`
+- Objetivo: indicador de fase de vela, precio provisional y pantalla de verificación.
+- Componentes/archivos modificados: alcance pedido por la humana.
+- Contrato consumido: `candle` del detalle (`window_start`, `window_s`, `commitment`, `in_window`, `price_is_provisional`, `notice`, `close_at`), `counted` del historial, `GET /auctions/{id}/candle-proof/` (`409 NOT_REVEALED_YET` antes del cierre, `MECHANISM_MISMATCH` sin vela); algoritmo de `apps/auctions/domain/closing/candle.py` y `scripts/verify_candle.py`.
+- Pruebas ejecutadas y resultado real: pendiente.
+- Riesgos/bloqueos: fechas del backend con microsegundos (JS `Date` solo ms).
+- Handoff/siguiente paso: implementar.
+
+## 2026-10-12T23:31:59-05:00: CIERRE: LX-62
+- Humano responsable: Maria (FE)
+- Herramienta/modelo IA (si se conoce): Claude (Cowork), modelo configurado claude-opus-5-5
+- Rama y commit: `frontend-lancex`, sin commit (lo hace la humana)
+- Objetivo: LX-62.
+- Componentes/archivos modificados (todo en `frontend/`):
+  - Nuevos: `src/lib/candleVerify.ts` (+ pruebas), `src/features/auctions/{CandlePhase.tsx,candleWindow.ts}`, `src/packages/candle/CandleVerifyPage.tsx` (`/subastas/:id/verificar-vela`, público, lazy) y sus pruebas.
+  - Modificados: `src/packages/auction/AuctionDetailPage.tsx` (fase de vela, precio provisional, "Termina a más tardar en", "Vas primero por ahora"), `src/features/auctions/BidHistory.tsx` ("No contó"), `src/packages/auction/AuctionResultPage.tsx` (enlace a verificar), `src/lib/serverClock.ts` (`useServerNow`), `src/app/buildRoutes.tsx`, `README.md`.
+- Decisiones/supuestos:
+  - La verificación no confía en el servidor: recalcula con los datos revelados y además compara el compromiso de la prueba con el que se mostró públicamente antes del cierre.
+  - Comparación en microsegundos con BigInt (`isoToMicros`) para coincidir exactamente con Python.
+  - La entrada a la ventana se calcula con la hora del servidor cada segundo (no con `in_window` del momento de la carga).
+  - En la ventana, el líder ve un aviso de que su primer lugar es provisional (no "Vas ganando").
+- Pruebas ejecutadas y resultado real:
+  - Vector generado con el dominio real del backend (`commitment_of`, `close_instant`): el navegador reproduce compromiso e instante exactos y detecta semilla alterada, instante alterado en 1 µs y compromiso publicado distinto.
+  - Cloud, Node 22.22.0: `npm run lint` 0 errores/avisos; `tsc --noEmit` y `tsc -b --noEmit` OK; `npm test -- --run` 18 archivos / 150 pruebas en verde (10 nuevas); `npm run build` OK (`CandleVerifyPage` en chunk propio); prettier OK.
+  - E2E Chromium contra backend real (Postgres local + `seed_demo`), subasta por vela real de 5 min 40 s con ventana de 5 min, en dos fases: 8/8 OK: fase normal con cuenta regresiva y "Termina a más tardar en"; compromiso visible; carla puja antes de la ventana; al entrar a la ventana aparecen "Fase de vela" y "Precio provisional" sin recargar; diego puja dentro de la ventana; tras el cierre, la página de verificación confirma las 3 comprobaciones con la semilla real revelada (instante 04:24:31.465508Z); historial sin pujas "No contó" porque ambas fueron anteriores al instante (el caso "No contó" está cubierto en pruebas de componente).
+- Riesgos/bloqueos: ninguno.
+- Handoff/siguiente paso: commit + PR. Siguiente FE: LX-53 (B2B).
+
+## 2026-10-13T07:26:20-05:00: INICIO: LX-53
+- Humano responsable: Maria (FE)
+- Herramienta/modelo IA (si se conoce): Claude (Cowork), modelo configurado claude-opus-5-5
+- Rama y commit: `frontend-lancex`
+- Objetivo: B2B: organizaciones, miembros, necesidades, subasta inversa, inscripción/calificación de proveedores y sala de ofertas.
+- Componentes/archivos modificados: alcance pedido por la humana.
+- Contrato consumido: handoffs a Frontend de LX-50/51/54 (2026-10-12T20:13), cierre de huecos por rol (2026-10-12T23:55) y auditoría (2026-10-13T00:03).
+- Pruebas ejecutadas y resultado real: pendiente.
+- Riesgos/bloqueos: ninguno al inicio.
+- Handoff/siguiente paso: implementar.
+
+## 2026-10-13T08:14:16-05:00: CIERRE: LX-53
+- Humano responsable: Maria (FE)
+- Herramienta/modelo IA (si se conoce): Claude (Cowork), modelo configurado claude-opus-5-5
+- Rama y commit: `frontend-lancex`, sin commit (lo hace la humana). Base: HEAD `8bdaf6f` (incluye `f0355a5` y `5759fa6`).
+- Objetivo: LX-53.
+- Componentes/archivos modificados (todo en `frontend/`):
+  - Nuevos: `src/features/organizations/{types,api,OrganizationForm}`, `src/features/reverse/{types,api,format,orgs,NeedSummary,ReverseOfferPanel}` + `b2b.test.tsx`, `src/packages/org/{OrganizationsPage,OrgOverview,MembersPage,OrgProfilePage}.tsx`, `src/packages/org-buyer/{NewNeedPage,NeedPage,QualificationPage}.tsx`, `src/packages/org-supplier/RegistrationPage.tsx`.
+  - Modificados: `src/packages/org/OrgHomePage.tsx` (pestañas y subrutas por capacidades de la organización), `src/packages/org-buyer/BuyerSection.tsx`, `src/packages/org-supplier/SupplierSection.tsx`, `src/packages/auction/AuctionDetailPage.tsx` (ficha de la necesidad, aviso legal, reglas de la inversa, sala de oferta, "Calificar proveedores"), `src/features/auctions/{AuctionList,AuctionCard,BidHistory,api,types}` (`mechanism`/`organization`, `registrations_pending`, historial de ofertas inversas), `src/features/notifications/{api,messages}.ts` (`organization_verified`/`organization_rejected`), `src/lib/money.ts` (`reverseTotal`, `isValidUnitPriceInput`), `src/app/{buildRoutes,AppLayout}.tsx` (`/organizaciones`), `src/app/routing.test.tsx`, `README.md`.
+- Decisiones/supuestos:
+  - Rutas: `/organizaciones`; `/org/:orgId` (resumen), `/miembros`, `/perfil`, `/compras` (necesidades, `necesidades/nueva`, `necesidades/:id`, `subastas/:id/calificacion`), `/oportunidades` (`inscripciones`, `:id/inscripcion`). Cada subruta existe solo con la capacidad de ESA organización; lo demás es 404. Una organización pendiente no ve Compras ni Oportunidades.
+  - Sala: vista previa del total con BigInt igual que el backend; antes de enviar se pide el total oficial (`reverse-quote`) y se confirma; cambiar un valor obliga a recalcular. `Idempotency-Key` nueva por intento, reutilizada solo tras fallo de red.
+  - No se muestran estados guardados de subasta que pueden no ser el efectivo (`auction.status` en necesidades e inscripciones): se enlaza al detalle.
+  - Transferir propiedad: la contraseña solo vive en el estado del formulario y se borra tras el intento.
+- Pruebas ejecutadas y resultado real:
+  - Cloud, Node 22.22.0: `npm run lint` 0 errores/avisos; `tsc -b --noEmit` OK; `npm test -- --run` 19 archivos / 162 pruebas en verde (12 nuevas en `b2b.test.tsx`); `npm run build` OK (`OrgHomePage`, `OrganizationsPage`, `BuyerSection`, `SupplierSection` en chunks propios); prettier OK.
+  - E2E Chromium contra el backend real de HEAD `8bdaf6f` (Postgres local, migraciones de `supabase/migrations` + `seed_demo`), 17/17 OK: ana registra organización (pendiente, sin Compras/Oportunidades), agrega a beto, `ALREADY_MEMBER` al repetir; carla publica necesidad con requisito, crea y publica la inversa (inicio +4 min); diego se inscribe declarando cumplimiento; el panel de compras lista la necesidad y "1 inscripción por revisar"; carla admite; antes del inicio diego ve "Admitida"; al empezar aparece el formulario sin recargar; total sobre el presupuesto se avisa sin enviar; `reverse-quote` confirma $995,00 (24.5 × 40 + 15) y la oferta se acepta; historial con desglose propio; ofertar siendo líder muestra `ALREADY_LEADING`; "Mis inscripciones" y "Oportunidades" muestran Admitida; carla ve "Proveedor 1" sin desglose ni formulario. (Una corrida intermedia chocó con el límite de 5 logins/min y con el throttle de pujas al ofertar dos veces en el mismo segundo: se separaron los pasos.)
+- Riesgos/bloqueos: ninguno bloqueante; dos observaciones para ARQ en `handoffs/backend.md`.
+- Handoff/siguiente paso: commit + PR. Siguiente FE: LX-73 (imágenes, liquidación y calificación, admin) y LX-78 (moderación, incluye verificación de organizaciones).
+
+## 2026-10-13T09:42:15-05:00: INICIO: pendientes de ARQ (vistas personales)
+- Humano responsable: Maria (FE)
+- Herramienta/modelo IA (si se conoce): Claude (Cowork), modelo configurado claude-opus-5-5
+- Rama y commit: `frontend-lancex`
+- Objetivo: conectar lo del handoff a Frontend de 2026-10-12T23:30 (`/mis-publicaciones`, `/panel`, `/mis-pujas`, `/cuenta`, perfil público, "Reportar publicación", `watchers_count`) y el texto de `report_resolved` (handoff de 23:55).
+- Componentes/archivos modificados: alcance pedido por la humana.
+- Pruebas ejecutadas y resultado real: pendiente.
+- Riesgos/bloqueos: ninguno.
+- Handoff/siguiente paso: implementar.
+
+## 2026-10-13T09:59:23-05:00: CIERRE: pendientes de ARQ (vistas personales)
+- Humano responsable: Maria (FE)
+- Herramienta/modelo IA (si se conoce): Claude (Cowork), modelo configurado claude-opus-5-5
+- Rama y commit: `frontend-lancex`, sin commit (lo hace la humana).
+- Objetivo: pendientes de ARQ.
+- Componentes/archivos modificados (todo en `frontend/`):
+  - Nuevos: `src/features/me/{types,api}.ts` y `me.test.tsx`.
+  - Modificados: `src/packages/listings/MyListingsPage.tsx`, `src/packages/user/UserPanelPage.tsx`, `src/packages/my-auctions/MyBidsPage.tsx` (+ `lx29.test.tsx`), `src/packages/account/AccountPage.tsx`, `src/packages/profile/PublicProfilePage.tsx`, `src/packages/auction/AuctionDetailPage.tsx`, `src/features/listings/{api,types}.ts`, `src/features/auctions/{AuctionList,api,types}.ts(x)` (`seller`, `listing_id`, `watchers_count`), `src/features/auth/api.ts` (`updateProfile` parcial), `src/api/types.ts` (`bio`, `location_city`), `src/features/notifications/{api,messages}.ts`, `README.md`.
+- Decisiones/supuestos:
+  - El resumen de operaciones muestra siempre `operations.notice`: LANCEX no procesa pagos ni guarda saldos.
+  - `/mis-pujas` solo pinta datos propios (`my_last_bid`, `my_proxy_max`, `my_sealed_offer`); las terminadas enlazan al resultado.
+  - Perfil: PATCH solo de lo cambiado; borrar presentación o ciudad envía `null`. Sesiones: se muestra el id derivado, nunca la clave.
+  - Estados guardados de `latest_auction` no se muestran como estado: se enlaza al detalle.
+- Pruebas ejecutadas y resultado real:
+  - Cloud, Node 22.22.0: `npm run lint` 0 errores/avisos; `tsc -b --noEmit` OK; `npm test -- --run` 20 archivos / 168 pruebas en verde (6 nuevas, 1 adaptada); `npm run build` OK; prettier OK.
+  - E2E Chromium contra el backend de HEAD `8bdaf6f` (Postgres local + `seed_demo`, no Supabase), 11/11 OK: beto ve sus publicaciones demo desde `GET /listings/`; puja en una subasta de ana; "Reportar publicación" envía el reporte; `/panel` muestra "Vas ganando: 1" y el aviso de operaciones; `/mis-pujas` muestra "Vas ganando" y su última puja; guarda presentación y ciudad; con dos sesiones abiertas, "Cerrar sesión en los demás dispositivos" deja solo la actual y la otra pierde el acceso; el registro muestra "Pujaste por …"; el perfil público muestra presentación, ciudad y sus subastas; la dueña ve cuántas personas siguen su subasta y no puede reportarla.
+- Riesgos/bloqueos: ninguno. Imágenes (LX-73) siguen esperando el bucket `listing-images`.
+- Handoff/siguiente paso: commit + PR. Siguiente FE: LX-78 (moderación) o LX-73 (liquidación, calificación y admin).
+
+## 2026-10-13T10:03:40-05:00: INICIO: LX-78
+- Humano responsable: Maria (FE)
+- Herramienta/modelo IA (si se conoce): Claude (Cowork), modelo configurado claude-opus-5-5
+- Rama y commit: `frontend-lancex`
+- Objetivo: paquete de moderación (bandeja, verificación de organizaciones, reportes, vista interna de subasta, ficha de usuario).
+- Componentes/archivos modificados: alcance pedido por la humana.
+- Contrato consumido: `/moderation/summary|reports|reports/{id}/resolve|auctions/{id}|auctions/{id}/cancel|users/{id}|users/{id}/suspend|organizations|organizations/{id}|organizations/{id}/decision/` (LX-77 y handoff 2026-10-12T23:55).
+- Pruebas ejecutadas y resultado real: pendiente.
+- Riesgos/bloqueos: ninguno.
+- Handoff/siguiente paso: implementar.
+
+## 2026-10-13T10:12:24-05:00: CIERRE: LX-78
+- Humano responsable: Maria (FE)
+- Herramienta/modelo IA (si se conoce): Claude (Cowork), modelo configurado claude-opus-5-5
+- Rama y commit: `frontend-lancex`, sin commit (lo hace la humana).
+- Objetivo: LX-78.
+- Componentes/archivos modificados (todo en `frontend/`):
+  - Nuevos: `src/features/moderation/{types,api}.ts` + `moderation.test.tsx`; `src/packages/moderation/{Inbox,OrganizationsReviewPage,ReportsPage,AuctionModerationPage,UserFilePage,shared}.tsx`.
+  - Modificados: `src/packages/moderation/ModerationHomePage.tsx` (subrutas por capacidad), `src/packages/auction/AuctionDetailPage.tsx` (enlace "Vista de moderación"), `src/app/routing.test.tsx`, `README.md`.
+- Decisiones/supuestos:
+  - Toda acción de staff pide motivo o nota (≥ 3) y confirmación; el backend la registra en auditoría.
+  - Resolver un reporte: "descartar" envía `dismissed` + `none`; cancelar subasta o suspender envía `actioned`. Cancelar solo se ofrece en reportes de subastas.
+  - No se ofrece suspender lo que el backend rechazará (a uno mismo, a un admin, ni a un moderador si quien actúa no es admin); el backend lo valida igual.
+  - Se pinta solo lo que manda el backend: nunca máximos automáticos; ofertas selladas solo tras la revelación.
+- Pruebas ejecutadas y resultado real:
+  - Cloud, Node 22.22.0: `npm run lint` 0 errores/avisos; `tsc -b --noEmit` OK; `npm test -- --run` 21 archivos / 174 pruebas en verde (6 nuevas, 1 adaptada); `npm run build` OK (`ModerationHomePage` en chunk propio); prettier OK.
+  - E2E Chromium como `moderador@demo` contra el backend de HEAD `8bdaf6f` (Postgres local + `seed_demo`), 11/11 OK: bandeja con organizaciones pendientes y reportes abiertos; ficha de organización con miembros y email; verificación con nota; vista de moderación de la subasta reportada con auditoría; reporte de subasta descartado; reporte de usuario resuelto suspendiendo a diego; ficha de diego "Suspendida" sin botón de suspender; diego recibe `403 ACCOUNT_SUSPENDED` al iniciar sesión; el moderador cancela una subasta con motivo y el detalle público la muestra cancelada.
+- Riesgos/bloqueos: ninguno.
+- Handoff/siguiente paso: commit + PR. Siguiente FE: LX-73 (liquidación y calificación, administración; imágenes cuando exista el bucket).
+
+## 2026-10-13T12:36:38-05:00: INICIO: LX-73
+- Humano responsable: Maria (FE)
+- Herramienta/modelo IA (si se conoce): Claude (Cowork), modelo configurado claude-opus-5-5
+- Rama y commit: `frontend-lancex`
+- Objetivo: liquidación y calificación tras el cierre, imágenes de publicaciones y paquete de administración.
+- Componentes/archivos modificados: alcance pedido por la humana.
+- Contrato consumido: `PATCH /auctions/{id}/settlement/`, `POST /auctions/{id}/rating/`, `viewer.can_rate|my_rating` y `winner_pseudonym` del resultado, `/listings/{id}/images/*`, `/admin/users|users/{id}/reactivate|users/{id}/role|categories|categories/{id}|audit-events|system-health/`.
+- Pruebas ejecutadas y resultado real: pendiente.
+- Riesgos/bloqueos: el bucket `listing-images` aún no existe en Supabase (BD).
+- Handoff/siguiente paso: implementar.
+
+## 2026-10-13T12:50:08-05:00: CIERRE: LX-73
+- Humano responsable: Maria (FE)
+- Herramienta/modelo IA (si se conoce): Claude (Cowork), modelo configurado claude-opus-5-5
+- Rama y commit: `frontend-lancex`, sin commit (lo hace la humana).
+- Objetivo: LX-73.
+- Componentes/archivos modificados (todo en `frontend/`):
+  - Nuevos: `src/packages/auction/RatePage.tsx` (`/calificar/:auctionId`, lazy), `src/features/listings/{ListingImages.tsx,upload.ts}`, `src/features/admin/api.ts` + `lx73.test.tsx`, `src/packages/admin/{UsersPage,CategoriesPage,AuditPage,SystemHealthPage}.tsx`.
+  - Modificados: `src/packages/admin/AdminHomePage.tsx` (subrutas por capacidad; `/admin` lleva a la primera disponible), `src/packages/auction/AuctionResultPage.tsx` (ganador seudonimizado, liquidación, calificar), `src/packages/listings/EditListingPage.tsx` (imágenes), `src/features/{auctions,listings}/api.ts`, `src/features/auctions/types.ts`, `src/app/buildRoutes.tsx`, `README.md`.
+- Decisiones/supuestos:
+  - Liquidación y calificación son definitivas: se confirman antes de enviar; "no se concretó" exige motivo.
+  - La subida va directo del navegador a la URL firmada (sin cookies, sin CSRF, sin claves) y el backend verifica los metadatos reales al confirmar.
+  - Cambio de rol: la contraseña del admin solo vive en el formulario y se borra tras el intento; el backend aplica último admin, `OPEN_ACTIVITY` y step-up.
+  - Auditoría: fechas en `datetime-local` (hora de Ecuador) convertidas a ISO con `-05:00`.
+- Pruebas ejecutadas y resultado real:
+  - Cloud, Node 22.22.0: `npm run lint` 0 errores/avisos; `tsc -b --noEmit` OK; `npm test -- --run` 22 archivos / 181 pruebas en verde (7 nuevas); `npm run build` OK (`AdminHomePage` y `RatePage` en chunks propios); prettier OK.
+  - E2E Chromium contra el backend de HEAD `8bdaf6f` (Postgres local + `seed_demo`), 11/11 OK: admin reactiva a diego y diego vuelve a entrar; categoría "Música E2E" con slug `musica-e2e` creada y desactivada; salud del sistema con el latido de `close_due_auctions`; tras el cierre real de una subasta de beto ganada por carla, beto registra "Concretada" y califica a carla (5) sin poder repetir; carla no ve la liquidación y califica a beto (4); la reputación de beto se actualiza; la auditoría filtrada muestra los 2 `rating_submitted`. (Una corrida chocó con el límite de 5 logins/min; se reordenaron los pasos.)
+  - Imágenes: solo pruebas de componente (flujo de 3 pasos, validación de tipo y `STORAGE_UNAVAILABLE`); sin E2E real porque el bucket `listing-images` no existe todavía.
+- Riesgos/bloqueos: subida real de imágenes pendiente de que BD cree el bucket privado `listing-images` y comparta `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY`.
+- Handoff/siguiente paso: commit + PR. Pendientes FE: LX-74 (E2E Playwright en CI) y probar imágenes cuando exista el bucket.
+
+## 2026-10-13T13:00:43-05:00: VERIFICACIÓN: LX-73 imágenes contra Supabase
+- Humano responsable: Maria (FE)
+- Herramienta/modelo IA (si se conoce): Claude (Cowork), modelo configurado claude-opus-5-5
+- Rama y commit: `frontend-lancex`, sin commit.
+- Objetivo: probar la subida real de imágenes ahora que BD creó el bucket privado `listing-images`.
+- Componentes/archivos modificados: ninguno en el código. Maria configuró `SUPABASE_URL` (sin `/rest/v1`), `SUPABASE_SERVICE_ROLE_KEY` y `SUPABASE_IMAGES_BUCKET` en su `backend/.env` (no versionado; claves no compartidas en el chat).
+- Pruebas ejecutadas y resultado real (laptop de Maria, backend contra Supabase compartido):
+  - `python manage.py shell -c "...get_storage().signed_upload_url('healthcheck/prueba.png')..."` → `POST /storage/v1/object/upload/sign/listing-images/...` 200 y `Storage OK`. (Un primer intento dio 404 porque la URL incluía `/rest/v1`.)
+  - En la app, como Ana: nueva publicación → imagen subida desde "Editar" → `/mis-publicaciones` muestra la portada con la URL firmada de lectura.
+- Riesgos/bloqueos: queda en `listing-images/healthcheck/` el objeto de la prueba de firma, si llegó a crearse (la firma por sí sola no sube archivo).
+- Handoff/siguiente paso: ninguno para BD. Siguiente FE: LX-74 (E2E en CI).
+
+## 2026-10-13T13:02:00-05:00: INICIO: LX-74 y vista de solo lectura de publicaciones
+- Humano responsable: Maria (FE)
+- Herramienta/modelo IA (si se conoce): Claude (Cowork), modelo configurado claude-opus-5-5
+- Rama y commit: `frontend-lancex`
+- Objetivo: E2E Playwright de los recorridos principales de cada modalidad (PLAN LX-74, PRUEBAS-Y-SEGURIDAD §7) y abrir en solo lectura las publicaciones bloqueadas por una subasta.
+- Componentes/archivos modificados: alcance pedido por la humana. `.github/workflows/ci.yml` es de ARQ (LX-09): no se toca, se deja handoff.
+- Pruebas ejecutadas y resultado real: pendiente.
+- Riesgos/bloqueos: límites del backend (login 5/min por IP, 120 peticiones/min por usuario) con pruebas en paralelo.
+- Handoff/siguiente paso: implementar.
+
+## 2026-10-13T13:27:12-05:00: CIERRE: LX-74 y vista de solo lectura de publicaciones
+- Humano responsable: Maria (FE)
+- Herramienta/modelo IA (si se conoce): Claude (Cowork), modelo configurado claude-opus-5-5
+- Rama y commit: `frontend-lancex`, sin commit (lo hace la humana).
+- Objetivo: LX-74 + mejora de `/mis-publicaciones`.
+- Componentes/archivos modificados (todo en `frontend/`):
+  - Nuevos: `playwright.config.ts`, `tsconfig.e2e.json`, `.gitignore` (sesiones y reportes de Playwright), `e2e/{global-setup,support}.ts`, `e2e/{ascending,sealed,candle,reverse}.spec.ts`.
+  - Modificados: `package.json` / `package-lock.json` (`@playwright/test` 1.63.0 exacta; script `e2e`), `vite.config.ts` (Vitest solo corre `src/**/*.test.*`), `tsconfig.json` (referencia a `tsconfig.e2e.json`), `.prettierignore`, `src/packages/listings/MyListingsPage.tsx` (título enlazado y botón "Ver" en publicaciones bloqueadas; la página de edición ya las muestra en solo lectura), `src/features/me/me.test.tsx`, `README.md`.
+- Decisiones/supuestos:
+  - Preparación por API (crear publicación/subasta) e interacción por la interfaz (pujar, ofertar, inscribirse, calificar, liquidar, verificar); cada prueba espera el cierre real del job.
+  - Un login por usuario en `global-setup` (límite de 5/min por IP); esperas anónimas y páginas en blanco mientras se espera (límite de 120/min por usuario).
+  - Las pruebas no tocan Supabase ni secretos: contraseña demo por variable de entorno.
+- Pruebas ejecutadas y resultado real:
+  - Cloud, Node 22.22.0: `npm run lint` 0 errores/avisos; `tsc -b --noEmit` OK (incluye `e2e/`); `npm test -- --run` 22 archivos / 181 pruebas en verde; `npm run build` OK; prettier OK.
+  - `npm run e2e` contra el backend de HEAD `8bdaf6f` (Postgres local + `seed_demo` + `runserver` + `close_due_auctions --loop 5`), dos corridas seguidas: **4/4 en verde en 5.7 min** cada una (sellado 2.4–2.5 min, ascendente 2.6–2.7 min, inversa 4.3 min, vela 5.5 min). Una primera corrida falló 2/4 por `429 RATE_LIMITED` (polling de varias páginas del mismo usuario); se corrigió con las esperas anónimas y las páginas en blanco.
+- Riesgos/bloqueos: el job de CI depende de ARQ (handoff en `handoffs/backend.md`).
+- Handoff/siguiente paso: commit + PR. Frontend del plan completo.
+
+## 2026-10-13T13:35:00-05:00: INICIO: rediseño visual UX/UI
+- Humano responsable: Maria (FE)
+- Herramienta/modelo IA (si se conoce): Claude (Cowork), modelo configurado claude-opus-5-5
+- Rama y commit: `frontend-lancex`
+- Objetivo: rediseño visual a partir de una referencia de plantilla de subastas aportada por la humana (héroe verde oliva, CTA naranja, palabra destacada en serif itálica, tarjetas con "Lote #" y cuenta regresiva en bloques). Alcance elegido: base + pantallas clave; modo oscuro automático.
+- Componentes/archivos modificados: solo presentación en `frontend/`; sin cambios de API, rutas ni reglas.
+- Pruebas ejecutadas y resultado real: pendiente.
+- Riesgos/bloqueos: cambios de texto/estructura pueden romper pruebas que buscan por texto.
+- Handoff/siguiente paso: implementar.
+
+## 2026-10-13T13:54:46-05:00: CIERRE: rediseño visual UX/UI
+- Humano responsable: Maria (FE)
+- Herramienta/modelo IA (si se conoce): Claude (Cowork), modelo configurado claude-opus-5-5
+- Rama y commit: `frontend-lancex`, sin commit (lo hace la humana).
+- Objetivo: rediseño visual (base + pantallas clave, modo oscuro automático).
+- Componentes/archivos modificados (todo en `frontend/`):
+  - Nuevos: `src/components/Logo.tsx`, `src/features/auctions/{Hero,CountdownChips}.tsx`, `src/features/auctions/{auctionArt,useRemaining}.ts`, `src/packages/auction/Gallery.tsx`.
+  - Modificados: `src/index.css` (tokens de color verde/naranja, modo oscuro por `prefers-color-scheme`, tipografías, `.accent-word`, movimiento reducido), `src/components/ui/{alert,button,input,modal,native-select,textarea}.tsx`, `src/app/AppLayout.tsx` (cabecera fija con logo y pie de marca), `src/features/notifications/NotificationBell.tsx`, `src/features/auctions/{AuctionCard,CatalogPage,StatusBadge}.tsx`, `labels.ts`, `src/features/auth/AuthCard.tsx`, `src/packages/auction/AuctionDetailPage.tsx`, `src/packages/user/UserPanelPage.tsx`, `package.json` / `package-lock.json` (`@fontsource-variable/plus-jakarta-sans` y `@fontsource/dm-serif-display` 5.3.0, autoalojadas: sin CDN externo).
+- Decisiones/supuestos:
+  - Sin fotos reales en la referencia del catálogo: las tarjetas sin portada usan un degradado e icono por modalidad.
+  - La cuenta regresiva en bloques sigue usando la hora del servidor; los bloques son `aria-hidden` y el texto accesible es uno solo.
+  - Contraste AA del texto blanco sobre naranja y verde; acento lima con color fijo para que no se pierda en modo oscuro.
+- Pruebas ejecutadas y resultado real:
+  - Cloud, Node 22.22.0: `tsc -b --noEmit` OK; `npm run lint` OK; prettier OK; Vitest 22 archivos / 181 pruebas en verde; `npm run build` OK.
+  - `npm run e2e` contra backend local (HEAD `8bdaf6f`): 4/4 en verde (5.7 min).
+  - Capturas en claro y oscuro de catálogo, ingreso, detalle y panel revisadas.
+- Riesgos/bloqueos: hay que correr `npm install` para las tipografías nuevas.
+- Handoff/siguiente paso: commit + PR.

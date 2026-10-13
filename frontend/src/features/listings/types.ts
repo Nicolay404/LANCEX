@@ -37,6 +37,22 @@ export interface Listing {
   images: ListingImage[]
 }
 
+/** Fila de `GET /listings/` (mis publicaciones). */
+export interface OwnListingRow {
+  id: Uuid
+  category: { id: number; name: string }
+  title: string
+  item_condition: ItemCondition
+  location_city: string
+  created_at: IsoDateTime
+  updated_at: IsoDateTime
+  /** URL firmada (1 h) de la primera imagen, o null. */
+  cover_image_url: string | null
+  editable: boolean
+  /** Última subasta de la publicación (estado GUARDADO, no el efectivo). */
+  latest_auction: { id: Uuid; status: string; mechanism: string } | null
+}
+
 /** Únicos campos que acepta el backend (entrada estricta: otro campo = UNKNOWN_FIELD). */
 export interface ListingInput {
   category_id: number

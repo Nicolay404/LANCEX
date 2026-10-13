@@ -12,13 +12,15 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { auctionKeys, cancelAuction, fetchBids, publishAuction } from '@/features/auctions/api'
 import { BidForm } from '@/features/auctions/BidForm'
+import { CandlePhase, ProvisionalPriceNote } from '@/features/auctions/CandlePhase'
+import { inCandleWindow } from '@/features/auctions/candleWindow'
 import { BidHistory } from '@/features/auctions/BidHistory'
 import { ExtensionNotice } from '@/features/auctions/ExtensionNotice'
 import { ProxyLimitPanel } from '@/features/auctions/ProxyLimitPanel'
 import { SealedOfferPanel } from '@/features/auctions/SealedOfferPanel'
 import { SealedRanking } from '@/features/auctions/SealedRanking'
 import { WatchButton } from '@/features/auctions/WatchButton'
-import { Countdown } from '@/features/auctions/Countdown'
+import { CountdownChips } from '@/features/auctions/CountdownChips'
 import { CLOSING_LABEL, MECHANISM_LABEL } from '@/features/auctions/labels'
 import { priceLines } from '@/features/auctions/PriceSummary'
 import { StatusBadge } from '@/features/auctions/StatusBadge'
@@ -27,9 +29,15 @@ import { Cap, hasCapability } from '@/features/auth/capabilities'
 import { loginPathFor } from '@/features/auth/nextPath'
 import { useMe } from '@/features/auth/session'
 import { ReportButton } from '@/features/reports/ReportButton'
+import { NeedSummary } from '@/features/reverse/NeedSummary'
+import { buyerOrganization } from '@/features/reverse/orgs'
+import { ReverseOfferPanel } from '@/features/reverse/ReverseOfferPanel'
 import { ITEM_CONDITION_LABEL, type ItemCondition } from '@/features/listings/types'
 import { formatDateTime } from '@/lib/dates'
 import { formatMoney } from '@/lib/money'
+import { useServerNow } from '@/lib/serverClock'
+
+import { Gallery } from './Gallery'
 
 /** `/subastas/:id`: detalle público con acciones según capacidades (LX-27). */
 export default function AuctionDetailPage() {
@@ -63,14 +71,14 @@ function AuctionView({ a }: { a: MergedAuction }) {
     hasCapability(me, Cap.BID_PLACE) && a.mechanism === 'ascending' && !a.viewer?.is_owner
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[1fr_22rem]">
-      <article className="space-y-6">
+    <div className="grid gap-10 lg:grid-cols-[1fr_24rem]">
+      <article className="space-y-8">
         <header className="space-y-2">
-          <Link to="/" className="text-sm text-muted-foreground hover:underline">
+          <Link to="/" className="text-sm font-medium text-muted-foreground hover:text-foreground">
             ← Subastas
           </Link>
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-semibold tracking-tight">{a.title ?? 'Subasta'}</h1>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-3xl font-bold sm:text-4xl">{a.title ?? 'Subasta'}</h1>
             <StatusBadge status={a.status} resultPending={a.result_pending} />
           </div>
           <p className="text-sm text-muted-foreground">
@@ -80,22 +88,7 @@ function AuctionView({ a }: { a: MergedAuction }) {
           </p>
         </header>
 
-        {a.images.length > 0 && (
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {[...a.images]
-              .sort((x, y) => x.position - y.position)
-              .map((img) => (
-                <li key={img.position}>
-                  <img
-                    src={img.url}
-                    alt={`Imagen ${img.position + 1} de ${a.title ?? 'la subasta'}`}
-                    className="aspect-square w-full rounded-lg border object-cover"
-                    referrerPolicy="no-referrer"
-                  />
-                </li>
-              ))}
-          </ul>
-        )}
+        <Gallery a={a} />
 
         {a.description && (
           <section className="space-y-2">
@@ -118,11 +111,17 @@ function AuctionView({ a }: { a: MergedAuction }) {
           </section>
         )}
 
+        {a.reverse && (
+          <>
+            <Alert>{a.reverse.legal_notice}</Alert>
+            <NeedSummary need={a.reverse} />
+          </>
+        )}
         <Rules a={a} />
         {isSealed ? (
           <SealedRanking auctionId={a.id} closed={a.status === 'closed'} />
         ) : (
-          <BidHistory auctionId={a.id} sealed={false} />
+          <BidHistory auctionId={a.id} sealed={false} reverse={a.mechanism === 'reverse'} />
         )}
       </article>
 
@@ -144,27 +143,31 @@ function AuctionView({ a }: { a: MergedAuction }) {
             <Link to={`/subastas/${a.id}/resultado`}>Ver resultado</Link>
           </Button>
         )}
-        <div className="space-y-4 rounded-xl border bg-card p-5 shadow-xs">
+        <div className="space-y-5 rounded-3xl border bg-card p-6 shadow-lg">
           <div>
-            <p className="text-xs text-muted-foreground">{price.label}</p>
-            <p className="text-3xl font-semibold tabular-nums">{price.value}</p>
+            <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              {price.label}
+            </p>
+            <p className="text-4xl font-extrabold tabular-nums">{price.value}</p>
             {price.detail && <p className="text-sm text-muted-foreground">{price.detail}</p>}
-            {a.candle?.price_is_provisional && (
-              <p className="text-xs text-amber-700">Precio provisional</p>
-            )}
+            <ProvisionalPriceNote candle={a.candle} status={a.status} />
           </div>
 
-          <p className="text-sm font-medium tabular-nums">
+          <div className="text-sm font-medium tabular-nums">
             {a.status === 'active' && (
-              <Countdown
+              <CountdownChips
+                size="lg"
+                surface="plain"
                 target={a.ends_at}
-                prefix="Termina en"
+                prefix={a.closing_policy === 'candle' ? 'Termina a más tardar en' : 'Termina en'}
                 elapsedLabel="Cerrando…"
                 onElapsed={refreshLive}
               />
             )}
             {a.status === 'scheduled' && (
-              <Countdown
+              <CountdownChips
+                size="lg"
+                surface="plain"
                 target={a.starts_at}
                 prefix="Empieza en"
                 elapsedLabel="Empezando…"
@@ -174,14 +177,14 @@ function AuctionView({ a }: { a: MergedAuction }) {
             {a.status === 'closed' &&
               (a.result_pending ? 'Cerrada · calculando resultado…' : 'Subasta cerrada')}
             {a.status === 'cancelled' && 'Subasta cancelada'}
-          </p>
+          </div>
           {a.soft_close?.extended && (
             <p className="text-xs text-amber-700">
               El cierre se extendió por pujas de último momento (antes:{' '}
               {formatDateTime(a.soft_close.original_ends_at)}).
             </p>
           )}
-          {a.candle?.notice && <p className="text-xs text-amber-700">{a.candle.notice}</p>}
+          {a.candle && <CandlePhase auctionId={a.id} candle={a.candle} status={a.status} />}
           {a.closing_policy === 'soft_close' && a.status === 'active' && (
             <ExtensionNotice key={a.id} endsAt={a.ends_at} />
           )}
@@ -220,6 +223,7 @@ function AuctionView({ a }: { a: MergedAuction }) {
                 isLeader={a.viewerIsLeader}
               />
             )}
+          {a.reverse && <ReverseActions a={a} />}
           {a.viewer &&
             !a.viewer.is_owner &&
             (a.status === 'active' || a.status === 'scheduled') &&
@@ -229,6 +233,12 @@ function AuctionView({ a }: { a: MergedAuction }) {
           {a.status !== 'draft' && !a.viewer?.is_owner && hasCapability(me, Cap.REPORT_CREATE) && (
             <ReportButton targetType="auction" targetId={a.id} className="w-full" />
           )}
+          {a.status !== 'draft' &&
+            a.listing_id &&
+            !a.viewer?.is_owner &&
+            hasCapability(me, Cap.REPORT_CREATE) && (
+              <ReportButton targetType="listing" targetId={a.listing_id} className="w-full" />
+            )}
           {a.status === 'active' && !me && a.mechanism !== 'reverse' && (
             <Button asChild className="w-full">
               <Link to={loginPathFor(location.pathname)}>
@@ -236,22 +246,55 @@ function AuctionView({ a }: { a: MergedAuction }) {
               </Link>
             </Button>
           )}
-          {a.viewer?.is_owner && (
-            <p className="text-sm text-muted-foreground">Es tu subasta: no puedes pujar.</p>
+          {a.viewer?.is_owner && typeof a.watchers_count === 'number' && (
+            <p className="text-sm text-muted-foreground">
+              {a.watchers_count === 1
+                ? '1 persona sigue esta subasta.'
+                : `${a.watchers_count} personas siguen esta subasta.`}
+            </p>
           )}
-          {a.status === 'active' &&
-            me &&
-            !a.viewer?.is_owner &&
-            a.mechanism === 'reverse' &&
-            hasCapability(me, Cap.BID_PLACE) && (
-              <p className="text-sm text-muted-foreground">
-                Ofertar en esta modalidad estará disponible pronto.
-              </p>
-            )}
+          {a.viewer?.is_owner && (
+            <p className="text-sm text-muted-foreground">
+              {a.reverse ? 'Es tu subasta: no puedes ofertar.' : 'Es tu subasta: no puedes pujar.'}
+            </p>
+          )}
         </div>
         {a.viewer?.is_owner && canOwnerCancel(a) && <CancelOwnAuction auctionId={a.id} />}
+        {hasCapability(me, Cap.MODERATION_VIEW_AUCTION_INTERNALS) && (
+          <Button asChild variant="outline" className="w-full">
+            <Link to={`/moderacion/subastas/${a.id}`}>Vista de moderación</Link>
+          </Button>
+        )}
       </aside>
     </div>
+  )
+}
+
+/** Inversa: la compradora califica antes del inicio; un proveedor se inscribe u oferta. */
+function ReverseActions({ a }: { a: MergedAuction }) {
+  const me = useMe()
+  if (!me || !a.reverse) return null
+  const buyer = buyerOrganization(me, a.reverse.buyer_organization.id)
+  if (buyer) {
+    return a.status === 'scheduled' || a.status === 'draft' ? (
+      <Button asChild variant="outline" className="w-full">
+        <Link to={`/org/${buyer.id}/compras/subastas/${a.id}/calificacion`}>
+          Calificar proveedores
+        </Link>
+      </Button>
+    ) : null
+  }
+  if (a.viewer?.is_owner || !hasCapability(me, Cap.BID_PLACE)) return null
+  if (a.status !== 'scheduled' && a.status !== 'active') return null
+  return (
+    <ReverseOfferPanel
+      me={me}
+      auctionId={a.id}
+      status={a.status}
+      reverse={a.reverse}
+      maximumAllowed={a.maximum_allowed}
+      version={a.liveVersion}
+    />
   )
 }
 
@@ -365,20 +408,33 @@ function LeaderBadge({ a }: { a: MergedAuction }) {
     queryFn: ({ signal }) => fetchBids(a.id, signal),
     enabled: !!a.viewer && a.mechanism !== 'sealed',
   })
+  const now = useServerNow()
+  const inWindow = inCandleWindow(a.candle, a.status, now)
   if (!a.viewer || a.viewer.is_owner || a.mechanism === 'sealed') return null
   if (a.status !== 'active' && a.status !== 'closed') return null
   if (a.viewerIsLeader) {
     return (
       <Alert variant="success">
-        {a.status === 'active' ? 'Vas ganando.' : 'Ibas ganando al cierre.'}
+        {a.mechanism === 'reverse'
+          ? a.status !== 'active'
+            ? 'Tu organización tenía la mejor oferta al cierre.'
+            : 'Tu organización tiene la mejor oferta.'
+          : a.status !== 'active'
+            ? 'Ibas ganando al cierre.'
+            : inWindow
+              ? 'Vas primero por ahora. Con la vela, el resultado depende del instante secreto de cierre.'
+              : 'Vas ganando.'}
       </Alert>
     )
   }
-  const participated = bids.data?.results.some((b) => b.bidder === 'Tú') ?? false
+  const participated =
+    bids.data?.results.some((b) => b.bidder === 'Tú' || b.bidder === 'Tu organización') ?? false
   if (participated && a.status === 'active') {
     return (
       <Alert variant="destructive">
-        Te superaron. Puja de nuevo para recuperar el primer lugar.
+        {a.mechanism === 'reverse'
+          ? 'Otra organización mejoró tu oferta. Puedes ofertar de nuevo, a la baja.'
+          : 'Te superaron. Puja de nuevo para recuperar el primer lugar.'}
       </Alert>
     )
   }
@@ -396,9 +452,17 @@ function Rules({ a }: { a: MergedAuction }) {
       formatMoney(a.starting_price),
     ])
   if (a.min_increment) rows.push(['Incremento mínimo', formatMoney(a.min_increment)])
-  rows.push(['Precio de reserva', a.has_reserve ? 'Sí (oculto)' : 'No'])
-  if (a.reserve_price) rows.push(['Tu precio de reserva', formatMoney(a.reserve_price)])
-  rows.push(['Puja automática', a.proxy_enabled ? 'Habilitada' : 'No'])
+  if (a.reverse) {
+    rows.push(
+      ['Presupuesto referencial', formatMoney(a.reverse.reference_budget)],
+      ['Decremento mínimo', formatMoney(a.reverse.min_decrement)],
+      ['Proveedores admitidos', String(a.reverse.admitted_count)],
+    )
+  } else {
+    rows.push(['Precio de reserva', a.has_reserve ? 'Sí (oculto)' : 'No'])
+    if (a.reserve_price) rows.push(['Tu precio de reserva', formatMoney(a.reserve_price)])
+    rows.push(['Puja automática', a.proxy_enabled ? 'Habilitada' : 'No'])
+  }
   if (a.soft_close) {
     rows.push([
       'Extensión',

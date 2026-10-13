@@ -3,6 +3,12 @@ import { formatMoney } from '@/lib/money'
 
 import type { AppNotification } from './api'
 
+const REPORT_TARGET: Record<string, string> = {
+  auction: 'una subasta',
+  listing: 'una publicación',
+  user: 'un usuario',
+}
+
 /** Texto de cada tipo (`notifications/services.TYPES`). Tipos nuevos caen en un texto genérico. */
 export function notificationText(n: AppNotification): string {
   const d = n.data ?? {}
@@ -28,6 +34,12 @@ export function notificationText(n: AppNotification): string {
       return `Empezó ${title}, que estás siguiendo.`
     case 'watch_auction_ending':
       return `${title[0]!.toUpperCase()}${title.slice(1)}, que sigues, termina pronto${d.ends_at ? ` (${formatDateTime(d.ends_at)})` : ''}.`
+    case 'organization_verified':
+      return `La organización${d.organization_name ? ` «${d.organization_name}»` : ''} fue verificada.`
+    case 'organization_rejected':
+      return `No se verificó la organización${d.organization_name ? ` «${d.organization_name}»` : ''}.${d.reason ? ` Motivo: ${d.reason}` : ''}`
+    case 'report_resolved':
+      return `Revisamos tu reporte${d.target_type ? ` de ${REPORT_TARGET[d.target_type] ?? 'contenido'}` : ''}. Gracias por avisarnos.`
     case 'rating_received':
       return `Recibiste una calificación por ${title}.`
     default:

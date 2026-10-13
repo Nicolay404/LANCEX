@@ -1,5 +1,6 @@
 /** Subastas (CONTRATO-API-INICIAL.md §Subastas y matriz de visibilidad). */
 import type { IsoDateTime, Money, Uuid } from '@/api/types'
+import type { ReverseInfo } from '@/features/reverse/types'
 
 export type Mechanism = 'ascending' | 'sealed' | 'reverse'
 export type ClosingPolicy = 'fixed' | 'soft_close' | 'candle'
@@ -22,6 +23,8 @@ export interface AuctionSummary {
   active_offer_count: number | null
   starts_at: IsoDateTime | null
   ends_at: IsoDateTime | null
+  /** Solo con `?organization=` (panel de la compradora): inscripciones sin revisar. */
+  registrations_pending?: number
 }
 
 export interface AuctionViewer {
@@ -58,6 +61,8 @@ export interface AuctionDetail extends AuctionSummary {
   location_city: string | null
   images: { url: string; position: number }[]
   seller: { id: Uuid; display_name: string; rating_avg: string | null; rating_count: number }
+  /** Publicación de origen (null en la inversa): para "Reportar publicación". */
+  listing_id?: Uuid | null
   starting_price: Money | null
   min_increment: Money | null
   has_reserve: boolean
@@ -70,7 +75,11 @@ export interface AuctionDetail extends AuctionSummary {
   reserve_price?: Money | null
   published_at?: IsoDateTime | null
   cancel_reason?: string | null
+  /** Solo dueño o staff: cuántas personas la siguen. */
+  watchers_count?: number
   viewer?: AuctionViewer
+  /** Solo en la subasta inversa B2B. */
+  reverse?: ReverseInfo
 }
 
 /** `GET /auctions/{id}/live/` (polling con ETag). */
@@ -92,11 +101,17 @@ export interface AuctionLive {
 export interface BidHistoryItem {
   seq: number
   amount: Money
-  source: 'manual' | 'proxy' | string
+  /** No llega en la inversa (todas son manuales). */
+  source?: 'manual' | 'proxy' | string
   accepted_at: IsoDateTime
-  /** "Postor N" o "Tú". */
+  /** "Postor N" o "Tú"; en la inversa, "Proveedor N" o "Tu organización". */
   bidder: string
-  counted: boolean | null
+  counted?: boolean | null
+  /** Inversa: desglose solo de las ofertas de TU organización. */
+  unit_price?: string
+  shipping_cost?: Money
+  /** Inversa: identidad visible para la compradora tras el cierre (y staff). */
+  bidder_identity?: { organization_id: Uuid; legal_name: string }
 }
 
 export interface BidAccepted {
@@ -119,6 +134,10 @@ export interface CatalogFilters {
   ordering?: 'ends_at' | '-created_at' | 'current_price'
   page?: number
   mine?: 'owner' | 'participating' | 'watching'
+  /** Panel de una organización (solo miembros; incluye borradores). */
+  organization?: string
+  /** Perfil público: subastas del vendedor (sin borradores). */
+  seller?: string
   page_size?: number
 }
 
@@ -137,7 +156,16 @@ export interface AuctionResult {
   has_reserve: boolean
   reserve_met: boolean | null
   winner_organization?: { id: Uuid; legal_name: string }
-  viewer?: { is_owner: boolean; is_winner: boolean; rank?: number | null }
+  /** Público en adjudicadas (no inversa): "Postor N" o "Tú", nunca la identidad. */
+  winner_pseudonym?: string
+  viewer?: {
+    is_owner: boolean
+    is_winner: boolean
+    rank?: number | null
+    /** Para `/calificar`: si puede calificar ahora y su calificación previa. */
+    can_rate?: boolean
+    my_rating?: { score: number; comment: string } | null
+  }
   /** REGLAS §10: con `awarded`, dueño y ganador ven nombre y email del otro. */
   contact?: { display_name: string; email: string }
 }
