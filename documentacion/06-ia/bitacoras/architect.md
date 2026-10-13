@@ -262,3 +262,25 @@
 - Pruebas ejecutadas y resultado real: ruff limpio; `check` sin errores; `LANCEX_REQUIRE_DB=1 pytest` **466 passed**; backend reiniciado y verificado por el proxy de Vite (SPA 200, endpoint nuevo responde).
 - Riesgos/bloqueos: siguen pendientes la migración de perfil en Supabase (BD) y Storage.
 - Handoff/siguiente paso: Frontend conecta las pantallas listadas en su handoff.
+
+## 2026-10-12T23:59:12-05:00 (2026-10-13T04:59:12Z): INICIO: auditoría funcional integral del backend
+- Humano responsable: Nicolay.
+- Herramienta/modelo IA: Claude (claude-opus-5-5).
+- Rama y commit: `feat/architect/cuenta-y-actividad` @ `5759fa6` (sin cambio de rama; sin commit ni push hasta autorización, por instrucción de la misión).
+- Objetivo: fase cero de inspección + informe `documentacion/05-calidad/AUDITORIA-FUNCIONAL-BACKEND.md`; luego lotes acotados L1 (D1, D6) y L2 (D2–D5) con pruebas y matriz de trazabilidad.
+- Inspección: sin TODO/stubs; sin secretos versionados ni `.env` en el historial; rutas que consume el frontend = existentes; `npm audit --omit=dev` 0 vulnerabilidades; `pip-audit` no disponible; línea base `pytest` 466 passed.
+
+## 2026-10-13T00:03:04-05:00 (2026-10-13T05:03:04Z): CIERRE: auditoría funcional integral del backend (bloques L1–L3)
+- Humano responsable: Nicolay.
+- Herramienta/modelo IA: Claude (claude-opus-5-5).
+- Rama y commit: `feat/architect/cuenta-y-actividad` @ `5759fa6`; cambios **sin commit ni push** (la misión lo exige sin autorización).
+- Objetivo: auditar el backend de punta a punta y corregir brechas acotadas con pruebas.
+- Archivos/documentos modificados: `apps/auctions/services/{lifecycle,queries}.py` (D1, D3), `apps/moderation/services/staff.py` y `api/staff_views.py` (D2), `apps/catalog/services/images.py` (D4), `apps/accounts/services/__init__.py` y `apps/audit/services/__init__.py` (D5); pruebas nuevas `tests/auctions/test_audit_fixes.py`, `tests/security/test_role_sweep.py`; `tests/security/endpoint_matrix.yaml` (`object_level_for`); documentos nuevos `05-calidad/AUDITORIA-FUNCIONAL-BACKEND.md`, `05-calidad/MATRIZ-DE-TRAZABILIDAD.md`; actualizados contrato, REGLAS §12, handoffs Frontend y BD, estado compartido. Un archivo vacío creado por error fuera del repo (`c:/A_Universidad/Securitytmp_placeholder.txt`) se eliminó en el acto.
+- Decisiones/supuestos: inversa rechaza edición de textos (el texto es de la necesidad); moderador ve sellados solo tras revelar; borrado de imagen valida Storage antes de tocar la base (si falla el borrado remoto tras el commit queda un objeto huérfano en bucket privado, registrado como WARNING); auditoría de perfil con nombres de campo sin valores; no se implementan recuperación de contraseña ni cambio de email (sin proveedor de correo: decisión humana).
+- Pruebas ejecutadas y resultado real: las 5 regresiones D1–D5 **fallaron antes** de corregir y pasan después; `ruff check .` y `ruff format --check .` limpios; `manage.py check` sin errores; `LANCEX_REQUIRE_DB=1 pytest` **655 passed**; `npm audit --omit=dev` (frontend) 0 vulnerabilidades; `pip-audit` no disponible (no verificado).
+- Riesgos/bloqueos: R1 migración de perfil en Supabase; Storage sin configurar; QA-05 sin medir.
+- Handoff/siguiente paso: autorización humana para commit/push; decisiones sobre correo y autodesactivación.
+
+## 2026-10-13T00:23:50-05:00 (2026-10-13T05:23:50Z): DECISIÓN: recuperación de contraseña sin proveedor
+- Humano responsable: Nicolay.
+- Decisión: posponer la recuperación de contraseña y el cambio de email; no se integra proveedor de correo por ahora (riesgo aceptado, SEGURIDAD §7). El humano autorizó el commit de la auditoría (no se pidió push).

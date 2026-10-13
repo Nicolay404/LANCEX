@@ -56,7 +56,13 @@ def catalog(user, params, now: datetime) -> QuerySet:
         if mine == "owner":
             qs = qs.filter(owner_user_id=user.pk)
         elif mine == "participating":
-            qs = qs.filter(pk__in=Bid.objects.filter(bidder_user_id=user.pk).values("auction_id"))
+            # Auditoría D3: participar incluye las ofertas selladas, no solo las pujas.
+            from apps.auctions.models import SealedOffer
+
+            qs = qs.filter(
+                Q(pk__in=Bid.objects.filter(bidder_user_id=user.pk).values("auction_id"))
+                | Q(pk__in=SealedOffer.objects.filter(bidder_user_id=user.pk).values("auction_id"))
+            )
         elif mine == "watching":
             qs = qs.filter(pk__in=RawSQL("SELECT auction_id FROM watchlist WHERE user_id = %s", [user.pk]))
         else:

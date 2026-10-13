@@ -9,6 +9,15 @@
 
 ## Handoffs activos
 
+- Fecha/hora: 2026-10-13T00:03:04-05:00 (2026-10-13T05:03:04Z)
+- Issue/PR: auditoría funcional del backend (sin commit aún; pendiente de autorización)
+- Para rol: Frontend
+- Estado: requiere revisión
+- Contexto: correcciones con efecto visible. (1) En subastas inversas, `PATCH /auctions/{id}/` con `title`/`description` ahora responde `400 VALIDATION_ERROR` (antes 200 sin guardar nada). (2) `?mine=participating` incluye subastas donde el usuario solo tiene oferta sellada. (3) Borrar una imagen sin Storage devuelve 503 y la imagen sigue existiendo. (4) Moderación: `sealed_offers` en la vista interna de una subasta.
+- Archivos, tablas o endpoints afectados: los cuatro citados.
+- Acción requerida: no ofrecer editar textos de una inversa desde la subasta; tratar el 503 de borrado como "inténtalo más tarde".
+- Cómo validar: `tests/auctions/test_audit_fixes.py`.
+
 - Fecha/hora: 2026-10-12T23:55:03-05:00
 - Issue/PR: análisis de flujos por rol (PANTALLAS-Y-NAVEGACION.md vs API) — rama `backend-lancex`
 - Para rol: Frontend

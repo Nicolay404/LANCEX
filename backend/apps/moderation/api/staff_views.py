@@ -169,6 +169,17 @@ class ModerationAuctionView(APIView):
                     }
                     for b in data["bids"]
                 ],
+                "sealed_offers": [
+                    {
+                        "seq": o.seq,
+                        "amount": to_str(o.amount),
+                        "status": o.status,
+                        "is_current": o.is_current,
+                        "submitted_at": o.submitted_at,
+                        "bidder": {"id": str(o.bidder_user_id), "display_name": o.bidder_user.display_name},
+                    }
+                    for o in data["sealed_offers"]
+                ],
                 "audit_events": [event_row(e) for e in data["events"]],
             }
         )

@@ -321,7 +321,13 @@ def auction_internals(auction_id) -> dict:
     bids = Bid.objects.filter(auction_id=auction.pk).select_related("bidder_user").order_by("seq")
     events = AuditEvent.objects.filter(auction_id=auction.pk).order_by("occurred_at")
     sealed_revealed = auction.mechanism == "sealed" and auction.status == Status.CLOSED
-    return {"auction": auction, "bids": list(bids), "events": list(events), "sealed_revealed": sealed_revealed}
+    # Auditoría D2: tras la revelación, el moderador ve las ofertas con identidad; antes, nunca.
+    sealed = (
+        list(SealedOffer.objects.filter(auction_id=auction.pk).select_related("bidder_user").order_by("-amount", "seq"))
+        if sealed_revealed
+        else []
+    )
+    return {"auction": auction, "bids": list(bids), "events": list(events), "sealed_offers": sealed}
 
 
 def user_file(user_id) -> dict:

@@ -11,6 +11,15 @@
 
 ## Handoffs activos
 
+- Fecha/hora: 2026-10-13T00:03:04-05:00 (2026-10-13T05:03:04Z)
+- Issue/PR: LX-18 (base implementada por ARQ en la auditoría)
+- Para rol: Base de datos / seguridad
+- Estado: listo para consumir
+- Contexto: `tests/security/test_role_sweep.py` recorre TODA la matriz y exige 401/403 por actor (visitante, usuario, moderador, admin); filas con denegación por objeto marcadas `object_level_for` y probadas con una subasta real ajena. Matriz de trazabilidad nueva: `documentacion/05-calidad/MATRIZ-DE-TRAZABILIDAD.md`.
+- Archivos, tablas o endpoints afectados: `backend/tests/security/*`, `endpoint_matrix.yaml`.
+- Acción requerida: completar LX-18 con los actores `buyer_member` y `supplier_member` (requieren organizaciones de prueba) y mantener la matriz al día. Sigue pendiente R1: aplicar `20261012230000_perfil_usuario.sql` en Supabase tras el merge.
+- Cómo validar: `LANCEX_REQUIRE_DB=1 python -m pytest tests/security -q`.
+
 - Fecha/hora: 2026-10-12T23:30:01-05:00
 - Issue/PR: perfil configurable (rama `backend-lancex`)
 - Para rol: Base de datos

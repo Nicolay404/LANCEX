@@ -63,17 +63,20 @@ endpoints:
     notes: "POST con publicación propia; staff no vende. mine=owner|participating|watching exige sesión."
 
   - route: /api/v1/auctions/{auction_id}/
+    object_level_for: [user, buyer_member, supplier_member]  # 403 depende del dueño: test_object_level_denials
     methods:
       GET: {visitor: 200, user: 200, buyer_member: 200, supplier_member: 200, moderator: 200, admin: 200}
       PATCH: {visitor: 401, user: 403, buyer_member: 403, supplier_member: 403, moderator: 403, admin: 403}
     notes: "GET de subasta publicada. Borrador ajeno -> 404. PATCH de subasta ajena -> 403 (visible) o 404 (borrador); dueño -> 200."
 
   - route: /api/v1/auctions/{auction_id}/publish/
+    object_level_for: [user, buyer_member, supplier_member]  # 403 depende del dueño: test_object_level_denials
     methods:
       POST: {visitor: 401, user: 403, buyer_member: 403, supplier_member: 403, moderator: 403, admin: 403}
     notes: "Con subasta ajena publicada. Dueño en draft -> 200."
 
   - route: /api/v1/auctions/{auction_id}/cancel/
+    object_level_for: [user, buyer_member, supplier_member]  # 403 depende del dueño: test_object_level_denials
     methods:
       POST: {visitor: 401, user: 403, buyer_member: 403, supplier_member: 403, moderator: 403, admin: 403}
     notes: "Con subasta ajena. Moderación usa /moderation/auctions/{id}/cancel/ (LX-77)."
@@ -206,11 +209,13 @@ endpoints:
     notes: "Solo sin subasta abierta (LISTING_LOCKED)."
 
   - route: /api/v1/auctions/{auction_id}/settlement/
+    object_level_for: [user, buyer_member, supplier_member]  # 403 depende del dueño: test_object_level_denials
     methods:
       PATCH: {visitor: 401, user: 403, buyer_member: 403, supplier_member: 403, moderator: 403, admin: 403}
     notes: "Con subasta ajena. Dueño (o compradora) de una adjudicada en pending -> 200."
 
   - route: /api/v1/auctions/{auction_id}/rating/
+    object_level_for: [user, buyer_member, supplier_member]  # 403 depende del dueño: test_object_level_denials
     methods:
       POST: {visitor: 401, user: 403, buyer_member: 403, supplier_member: 403, moderator: 403, admin: 403}
     notes: "Con subasta ajena cerrada. Dueño o ganador con liquidación final -> 201; segunda vez -> 409 ALREADY_RATED."

@@ -9,6 +9,7 @@ Flujo (ADR-0004 §6):
 
 from __future__ import annotations
 
+import logging
 import uuid
 
 from django.db import IntegrityError, transaction
@@ -18,6 +19,8 @@ from apps.catalog.models import Listing, ListingImage
 from apps.core.errors import Conflict, NotFound, ValidationFailed
 
 from .storage import get_storage
+
+logger = logging.getLogger("lancex.storage")
 
 ALLOWED_TYPES = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
 MAX_BYTES = 5 * 1024 * 1024
@@ -91,6 +94,10 @@ def confirm_upload(user, listing_id, *, storage_path: str, position: int) -> Lis
 
 
 def delete_image(user, listing_id, image_id) -> None:
+    # Auditoría D4: si Storage no está disponible se responde 503 SIN borrar la fila (antes se borraba y
+    # luego fallaba). Si el borrado del objeto falla después del commit, queda un objeto huérfano en el
+    # bucket privado (inaccesible: nadie tiene su ruta) y se registra como WARNING; la fila ya no existe.
+    storage = get_storage()
     with transaction.atomic():
         listing = _own_editable_listing(user, listing_id, for_update=True)
         image = ListingImage.objects.filter(pk=image_id, listing_id=listing.pk).first()
@@ -98,7 +105,10 @@ def delete_image(user, listing_id, image_id) -> None:
             raise NotFound()
         path = image.storage_path
         image.delete()
-    get_storage().delete(path)
+    try:
+        storage.delete(path)
+    except Exception:  # noqa: BLE001
+        logger.warning("Objeto de imagen huérfano en Storage", extra={"event": "storage_orphan_object"})
 
 
 def first_images(listing_ids) -> dict[str, str]:

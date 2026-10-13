@@ -196,6 +196,11 @@ def update_auction(user: User, auction_id, **changes) -> Auction:
 
     with transaction.atomic():
         auction = _owned_for_update(user, auction_id)
+        if texts and auction.listing_id is None:
+            # Auditoría D1: en la inversa los textos son de la necesidad B2B (no de una publicación).
+            # Antes se respondía 200 sin guardar nada; ahora se rechaza explícitamente.
+            message = "En la subasta inversa el texto pertenece a la necesidad B2B y no se edita aquí."
+            raise ValidationFailed(details={"fields": {name: [message] for name in sorted(texts)}})
         if auction.status == Status.DRAFT:
             if texts:
                 Listing.objects.filter(pk=auction.listing_id).update(**texts)

@@ -53,6 +53,8 @@ ACTIONS = frozenset(
         "organization_member_revoked",
         "category_changed",
         "security_password_changed",
+        "security_sessions_revoked",
+        "user_profile_updated",
         "admin_action",
     }
 )

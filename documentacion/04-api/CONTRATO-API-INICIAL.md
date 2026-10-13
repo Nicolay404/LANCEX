@@ -133,7 +133,7 @@ Leyenda de acceso: **P** público, **A** usuario autenticado con rol `user`, **D
 | GET/PATCH | `/listings/{id}/` | D | Editar solo si no tiene subasta publicada |
 | POST | `/listings/{id}/images/upload-url/` | D | `{content_type, size_bytes}` → `{upload_url, storage_path, expires_in}` |
 | POST | `/listings/{id}/images/` | D | Confirmar `{storage_path, position}` |
-| DELETE | `/listings/{id}/images/{image_id}/` | D | Solo sin subasta publicada |
+| DELETE | `/listings/{id}/images/{image_id}/` | D | Solo sin subasta publicada. Sin Storage → `503 STORAGE_UNAVAILABLE` y **no** se borra nada |
 | POST | `/procurement-requests/` | M (compradora verificada) | Crear necesidad B2B |
 | GET | `/procurement-requests/{id}/` | P | Detalle público + `auction{id, status, starts_at, ends_at, admitted_count}` (null si no tiene subasta) |
 | GET | `/organizations/{id}/procurement-requests/` | M | Necesidades de mi organización (paginado), cada una con su `auction` |
@@ -142,10 +142,10 @@ Leyenda de acceso: **P** público, **A** usuario autenticado con rol `user`, **D
 
 | Método | Ruta | Acceso | Descripción |
 |---|---|---|---|
-| GET | `/auctions/` | P | Catálogo. Filtros: `status` (efectivo), `mechanism`, `category`, `q`, `ending_soon=true`, `mine=owner\|participating\|watching` (A), `seller={user_id}` (perfil público, sin borradores), `organization={org_id}` (solo miembros: panel de la organización, incluye borradores). Orden: `ends_at`, `-created_at`, `current_price` |
+| GET | `/auctions/` | P | Catálogo. Filtros: `status` (efectivo), `mechanism`, `category`, `q`, `ending_soon=true`, `mine=owner\|participating\|watching` (A; `participating` incluye ofertas selladas), `seller={user_id}` (perfil público, sin borradores), `organization={org_id}` (solo miembros: panel de la organización, incluye borradores). Orden: `ends_at`, `-created_at`, `current_price` |
 | POST | `/auctions/` | A / M | Crear en `draft` (ver payload) |
 | GET | `/auctions/{id}/` | P | Detalle según audiencia (matriz) |
-| PATCH | `/auctions/{id}/` | D | Solo en `draft`; en `scheduled` solo textos |
+| PATCH | `/auctions/{id}/` | D | Solo en `draft`; en `scheduled` solo textos. En la **inversa** `title`/`description` → `400 VALIDATION_ERROR` (el texto es de la necesidad B2B) |
 | POST | `/auctions/{id}/publish/` | D | `draft → scheduled`; congela reglas; devuelve `candle_commitment` si aplica |
 | POST | `/auctions/{id}/cancel/` | D | `{reason}` (moderadores usan `/moderation/auctions/{id}/cancel/`) |
 | GET | `/auctions/{id}/live/` | P | Estado mínimo para polling; soporta `If-None-Match` → `304` |
@@ -191,7 +191,7 @@ Leyenda de acceso: **P** público, **A** usuario autenticado con rol `user`, **D
 | POST | `/moderation/organizations/{id}/decision/` | MOD | `{status: verified\|rejected, note}` |
 | GET | `/moderation/reports/?status=open` | MOD | Reportes |
 | POST | `/moderation/reports/{id}/resolve/` | MOD | `{status: dismissed\|actioned, note, action: none\|cancel_auction\|suspend_user}` |
-| GET | `/moderation/auctions/{id}/` | MOD | Vista interna: pujas con identidades y auditoría de la subasta (sin máximos proxy ni sellados no revelados) |
+| GET | `/moderation/auctions/{id}/` | MOD | Vista interna: pujas con identidades, `sealed_offers` (vacía hasta el cierre; tras la revelación, con identidad) y auditoría de la subasta (nunca máximos proxy) |
 | POST | `/moderation/auctions/{id}/cancel/` | MOD | `{reason}` |
 | GET | `/moderation/users/{id}/` | MOD | Ficha: actividad y reportes |
 | POST | `/moderation/users/{id}/suspend/` | MOD | `{reason}`; solo admin suspende a un moderador |

@@ -98,7 +98,16 @@ def update_profile(user: User, **changes) -> User:
         user.location_city = clean_city(changes["location_city"])
         fields.append("location_city")
     if fields:
-        user.save(update_fields=fields)
+        with transaction.atomic():
+            user.save(update_fields=fields)
+            # Auditoría D5: solo los nombres de los campos, nunca sus valores.
+            record(
+                "user_profile_updated",
+                actor_user_id=user.pk,
+                entity_type="user",
+                entity_id=user.pk,
+                data={"fields": sorted(fields)},
+            )
     return user
 
 
@@ -123,7 +132,16 @@ def sessions_of(request, user: User) -> list[dict]:
 
 def revoke_other_sessions(request, user: User) -> int:
     """ "Cerrar sesión en los demás dispositivos" (T12)."""
-    return revoke_all_sessions(user.pk, except_session_key=_http(request).session.session_key)
+    with transaction.atomic():
+        revoked = revoke_all_sessions(user.pk, except_session_key=_http(request).session.session_key)
+        record(
+            "security_sessions_revoked",
+            actor_user_id=user.pk,
+            entity_type="user",
+            entity_id=user.pk,
+            data={"revoked": revoked},
+        )
+    return revoked
 
 
 def change_password(request, user: User, *, current_password: str, new_password: str) -> None:
