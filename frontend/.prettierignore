@@ -3,3 +3,6 @@ coverage
 node_modules
 package-lock.json
 README.md
+playwright-report
+test-results
+e2e/.auth

@@ -223,13 +223,19 @@ describe('Mis subastas y Mis pujas', () => {
     expect(within(nav()).getByText('Mis subastas')).toBeInTheDocument()
   })
 
-  it('Mis pujas pide mine=participating y empieza en Activas', async () => {
-    const { calls } = fakeServer(asUser)
+  it('Mis pujas usa /me/participations/ y empieza en Activas', async () => {
+    const { calls } = fakeServer({
+      ...asUser,
+      'GET /me/participations/': () =>
+        json(200, { count: 0, next: null, previous: null, results: [] }),
+    })
     renderApp('/mis-pujas')
-    expect(await screen.findByText(/Todavía no participas/)).toBeInTheDocument()
-    const req = calls.find((c) => c.path === '/auctions/')!
-    expect(req.query.get('mine')).toBe('participating')
-    expect(req.query.get('status')).toBe('active')
+    expect(await screen.findByText(/No participas en subastas abiertas/)).toBeInTheDocument()
+    const req = calls.find((c) => c.path === '/me/participations/')!
+    expect(req.query.get('tab')).toBe('active')
+    expect(
+      calls.some((c) => c.path === '/auctions/' && c.query.get('mine') === 'participating'),
+    ).toBe(false)
   })
 
   it('moderador: /mis-subastas y /mis-pujas = 404', async () => {

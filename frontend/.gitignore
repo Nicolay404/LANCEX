@@ -1,0 +1,4 @@
+# Playwright (LX-74): sesiones de prueba y reportes locales
+e2e/.auth/
+test-results/
+playwright-report/

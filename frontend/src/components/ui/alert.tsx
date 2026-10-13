@@ -3,12 +3,12 @@ import * as React from 'react'
 
 import { cn } from '@/lib/utils'
 
-const alertVariants = cva('relative w-full rounded-lg border px-4 py-3 text-sm', {
+const alertVariants = cva('relative w-full rounded-xl border px-4 py-3 text-sm', {
   variants: {
     variant: {
-      default: 'bg-card text-card-foreground',
-      destructive: 'border-destructive/40 text-destructive bg-destructive/5',
-      success: 'border-emerald-600/30 bg-emerald-600/5 text-emerald-800 dark:text-emerald-300',
+      default: 'border-brand/20 bg-secondary text-secondary-foreground',
+      destructive: 'border-destructive/30 bg-destructive/8 text-destructive',
+      success: 'border-brand/30 bg-brand/10 text-brand-deep dark:text-secondary-foreground',
     },
   },
   defaultVariants: { variant: 'default' },

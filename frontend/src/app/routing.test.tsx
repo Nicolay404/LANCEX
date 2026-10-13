@@ -45,7 +45,9 @@ describe('router por capabilities (ADR-0006)', () => {
     unmount()
 
     renderApp('/moderacion')
-    expect(await screen.findByRole('heading', { name: 'Moderación' })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('heading', { name: 'Bandeja de moderación' }),
+    ).toBeInTheDocument()
   })
 
   it('admin: moderación y administración', async () => {
@@ -80,8 +82,14 @@ describe('router por capabilities (ADR-0006)', () => {
     const { unmount } = renderApp('/org/org-1')
 
     expect(await screen.findByRole('heading', { name: 'Insumos Loja S.A.' })).toBeInTheDocument()
-    expect(await screen.findByText('Compras de Insumos Loja S.A.')).toBeInTheDocument()
-    expect(screen.queryByText(/Ventas de/)).not.toBeInTheDocument()
+    const tabs = screen.getByRole('navigation', { name: 'Secciones de la organización' })
+    expect(within(tabs).getByRole('link', { name: 'Compras' })).toHaveAttribute(
+      'href',
+      '/org/org-1/compras',
+    )
+    // Sin capacidades de proveedora ni `org.edit_profile`: esas secciones no existen.
+    expect(within(tabs).queryByRole('link', { name: 'Oportunidades' })).not.toBeInTheDocument()
+    expect(within(tabs).queryByRole('link', { name: 'Perfil' })).not.toBeInTheDocument()
     expect(screen.getByRole('combobox', { name: 'Contexto activo' })).toHaveValue('org-1')
     unmount()
 

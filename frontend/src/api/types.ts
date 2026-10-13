@@ -33,6 +33,9 @@ export interface UserMe {
   id: Uuid
   email: string
   display_name: string
+  /** Perfil público opcional. */
+  bio?: string | null
+  location_city?: string | null
   platform_role: PlatformRole
   capabilities: string[]
   organizations: UserOrganization[]

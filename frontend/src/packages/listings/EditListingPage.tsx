@@ -12,6 +12,7 @@ import { PageLoading } from '@/components/PageLoading'
 import { Alert } from '@/components/ui/alert'
 import { fetchListing, listingKeys, updateListing } from '@/features/listings/api'
 import { ListingForm } from '@/features/listings/ListingForm'
+import { ListingImages } from '@/features/listings/ListingImages'
 import { toListingInput, type ListingFormValues } from '@/features/listings/schema'
 import { type Listing, type ListingInput } from '@/features/listings/types'
 import { formatDateTime } from '@/lib/dates'
@@ -111,25 +112,7 @@ export default function EditListingPage() {
         onSubmit={submit}
       />
 
-      {data.images.length > 0 && (
-        <section className="space-y-2">
-          <h2 className="text-lg font-medium">Imágenes</h2>
-          <ul className="grid grid-cols-3 gap-3 sm:grid-cols-6">
-            {[...data.images]
-              .sort((a, b) => a.position - b.position)
-              .map((img) => (
-                <li key={img.position}>
-                  <img
-                    src={img.url}
-                    alt={`Imagen ${img.position + 1} de ${data.title}`}
-                    className="aspect-square w-full rounded-md border object-cover"
-                    referrerPolicy="no-referrer"
-                  />
-                </li>
-              ))}
-          </ul>
-        </section>
-      )}
+      <ListingImages listing={data} />
     </section>
   )
 }

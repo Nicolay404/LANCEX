@@ -33,6 +33,8 @@ export default defineConfig(({ mode }) => {
     },
     test: {
       environment: 'jsdom',
+      // Las pruebas E2E (Playwright, `e2e/`) no corren con Vitest.
+      include: ['src/**/*.test.{ts,tsx}'],
       setupFiles: ['./src/test/setup.ts'],
       restoreMocks: true,
       unstubGlobals: true,

@@ -5,21 +5,27 @@ import * as React from 'react'
 import { cn } from '@/lib/utils'
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all duration-200 active:translate-y-px disabled:pointer-events-none disabled:opacity-50 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground shadow-xs hover:bg-primary/90',
+        default:
+          'bg-gradient-to-br from-primary to-[oklch(0.60_0.16_48)] text-primary-foreground shadow-sm shadow-primary/20 hover:shadow-md hover:shadow-primary/30 hover:from-primary/90 hover:to-[oklch(0.56_0.15_47)]',
+        /** Negro/claro según el tema, como los botones "Pujar" de las tarjetas. */
+        dark: 'bg-foreground text-background shadow-sm hover:bg-foreground/85',
+        /** Sobre superficies de marca (héroe, pie). */
+        light: 'bg-white text-brand-deep shadow-sm hover:bg-white/90',
         destructive: 'bg-destructive text-white shadow-xs hover:bg-destructive/90',
-        outline: 'border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground',
+        outline:
+          'border border-border bg-card shadow-xs hover:border-foreground/25 hover:bg-accent hover:text-accent-foreground',
         secondary: 'bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80',
         ghost: 'hover:bg-accent hover:text-accent-foreground',
         link: 'text-primary underline-offset-4 hover:underline',
       },
       size: {
-        default: 'h-9 px-4 py-2',
-        sm: 'h-8 rounded-md gap-1.5 px-3',
-        lg: 'h-10 rounded-md px-6',
+        default: 'h-10 px-5 py-2',
+        sm: 'h-8 gap-1.5 px-3.5 text-xs',
+        lg: 'h-12 px-7 text-base',
         icon: 'size-9',
       },
     },

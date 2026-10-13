@@ -10,6 +10,88 @@
 
 ## Handoffs activos
 
+- Fecha/hora: 2026-10-13T13:31:07-05:00
+- Issue/PR: rendimiento con Supabase (detectado por Frontend; rama `frontend-lancex`)
+- Para rol: Backend (ARQ) y BD
+- Estado: requiere revisión (la app funciona, pero cada pantalla tarda varios segundos contra Supabase)
+- Contexto: con el backend local de Maria apuntando al pooler de Supabase (`aws-1-us-west-2`, ~150–200 ms por ida y vuelta desde Ecuador), `GET /api/v1/auctions/` anónimo tardó **6.8 s** (`Measure-Command`). Medido en Postgres local con `CaptureQueriesContext` (seed demo): `/categories/` 13 consultas, `/auctions/` 21 (anónimo) y 15 (con sesión), `/auctions/{id}/` 16, `/live/` 10, `/auth/me/` 12, `/me/summary/` 26, `/notifications/?unread=true` 10. **12 de las 13 consultas de `/categories/` son del rate limiting**: `CACHES` usa `DatabaseCache` y cada throttle (`anon` y `user`) hace SELECT + COUNT + BEGIN + SELECT + UPDATE + COMMIT contra `django_cache`. Con ~200 ms por consulta, solo el throttling suma ~2.4 s por petición; además `runserver` abre un hilo por petición, así que `CONN_MAX_AGE` casi no reutiliza conexiones y cada petición paga otra vez TLS + autenticación en el pooler.
+- Archivos, tablas o endpoints afectados: `config/settings/*` (`CACHES`, `DEFAULT_THROTTLE_*`, `CONN_MAX_AGE`), tabla `django_cache`, presentadores con consultas por fila (`/auctions/`, `/me/summary/`).
+- Acción requerida (a decidir por ARQ/BD): (1) para el throttling, un caché que no viaje a la base (p. ej. `LocMemCache` en desarrollo: el límite queda por proceso, suficiente con 3 laptops) o dejar el `DatabaseCache` solo para lo que deba compartirse; (2) revisar N+1 en el catálogo y el resumen; (3) BD: valorar mover el proyecto a una región cercana (São Paulo, `sa-east-1`) y que el desarrollo diario use el Postgres local de Docker, dejando Supabase para pruebas de integración. Frontend no cambia nada de esto.
+- Cómo validar: `Measure-Command { Invoke-WebRequest http://localhost:8000/api/v1/auctions/ -UseBasicParsing }` contra Supabase antes y después; y el conteo de consultas con `django.test.utils.CaptureQueriesContext` (`/categories/` debería quedar en 1–2).
+
+- Fecha/hora: 2026-10-13T13:27:12-05:00
+- Issue/PR: LX-74 (rama `frontend-lancex`)
+- Para rol: Backend (ARQ, dueño de `.github/workflows/ci.yml` por LX-09)
+- Estado: requiere revisión (no bloquea; las E2E ya corren en local con `npm run e2e`)
+- Contexto: el frontend tiene E2E Playwright de las 4 modalidades contra el backend real (`frontend/e2e/`, unos 6 min). Para que corran en CI hace falta un job que levante Postgres + esquema + `seed_demo` + `runserver` + `close_due_auctions` y luego `npm run e2e`. Frontend no edita `ci.yml`.
+- Archivos, tablas o endpoints afectados: `.github/workflows/ci.yml` (job nuevo). Propuesta probada en local con los mismos comandos:
+  ```yaml
+  e2e:
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    services:
+      postgres:
+        image: postgres:17
+        env: { POSTGRES_USER: postgres, POSTGRES_PASSWORD: postgres, POSTGRES_DB: lancex_test }
+        ports: ["54329:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGPASSWORD: postgres
+      DJANGO_SETTINGS_MODULE: config.settings.dev
+      DJANGO_SECRET_KEY: ci-only-not-secret
+      DATABASE_URL: postgres://lancex_app:lancex_app@localhost:54329/lancex_test
+      DB_SSLMODE: disable
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1
+      CSRF_TRUSTED_ORIGINS: http://localhost:5173
+      FIRESTORE_LOGS_ENABLED: "false"
+      DEV_NAME: ci
+      LANCEX_DEMO_PASSWORD: Ci-Demo-${{ github.run_id }}!
+      E2E_DEMO_PASSWORD: Ci-Demo-${{ github.run_id }}!
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12", cache: pip, cache-dependency-path: backend/requirements.txt }
+      - run: python -m pip install -r backend/requirements.txt
+      - name: Esquema
+        env: { PSQL: psql -h localhost -p 54329 -U postgres }
+        run: bash ./scripts/db/apply_local.sh
+      - name: Backend en segundo plano
+        working-directory: backend
+        run: |
+          python manage.py seed_demo
+          nohup python manage.py runserver 8000 > ../django.log 2>&1 &
+          nohup python manage.py close_due_auctions --loop 5 > ../closer.log 2>&1 &
+      - uses: actions/setup-node@v4
+        with: { node-version: lts/*, cache: npm, cache-dependency-path: frontend/package-lock.json }
+      - name: E2E
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npm run e2e
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-report
+          path: |
+            frontend/playwright-report
+            frontend/test-results
+            django.log
+            closer.log
+  ```
+- Acción requerida: revisar y agregar el job (ajustar `needs` o dejarlo solo en `push` a `main` si 6 min por PR es mucho). No requiere secretos ni Supabase.
+- Cómo validar: el job termina con `4 passed`; en local, los comandos del README del frontend (sección "E2E con Playwright").
+
+- Fecha/hora: 2026-10-13T08:14:16-05:00
+- Issue/PR: LX-53 (rama `frontend-lancex`)
+- Para rol: Backend (ARQ)
+- Estado: requiere revisión (no bloquea)
+- Contexto: (1) La búsqueda del catálogo `GET /auctions/?q=` solo filtra por `listing__title`, así que una subasta inversa nunca aparece al buscar por el título de su necesidad. (2) `auction.status` en `GET /procurement-requests/{id}/`, `GET /organizations/{id}/procurement-requests/` y `GET /organizations/{id}/registrations/` es el estado guardado, no el efectivo (una inversa ya empezada sigue diciendo `scheduled` hasta que el job la materializa); el frontend no lo muestra y enlaza al detalle.
+- Archivos, tablas o endpoints afectados: `apps/auctions/services/queries.py` (`catalog`, filtro `q`), `apps/catalog/services/procurement.py` (`auction_info`), `apps/auctions/api/me_views.py` (`OrganizationRegistrationsView`).
+- Acción requerida: decidir si `q` busca también en `procurement_request__title` y si esos `status` deben ser el efectivo (`evaluate(...)`). Si cambian, avisar a Frontend para mostrar el estado.
+- Cómo validar: con `seed_demo`, `GET /auctions/?q=Resmas` devuelve la inversa demo; tras `starts_at`, `GET /organizations/{id}/registrations/` trae `active`.
+
 - Fecha/hora: 2026-10-12T23:30:01-05:00
 - Issue/PR: respuesta a los handoffs de LX-15, LX-35 y LX-38 (rama `backend-lancex`)
 - Para rol: Backend (ARQ) — CERRADO

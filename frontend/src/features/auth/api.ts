@@ -35,9 +35,14 @@ export const register = (input: RegisterInput) => api.post<UserMe>('/auth/regist
 
 export const logoutRequest = () => api.post<void>('/auth/logout/')
 
-/** Solo `display_name`: cualquier otro campo es `UNKNOWN_FIELD` en el backend. */
-export const updateProfile = (display_name: string) =>
-  api.patch<UserMe>('/auth/me/', { display_name })
+export interface ProfileInput {
+  display_name?: string
+  bio?: string | null
+  location_city?: string | null
+}
+
+/** PATCH parcial del perfil: solo los campos cambiados (`null` borra bio o ciudad). */
+export const updateProfile = (changes: ProfileInput) => api.patch<UserMe>('/auth/me/', changes)
 
 export const changePassword = (input: PasswordChangeInput) =>
   api.post<void>('/auth/password/', input)

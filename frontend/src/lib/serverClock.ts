@@ -5,7 +5,7 @@
  * regresivas. La fuente precisa es `server_time` de la API (detalle, live, /auth/me);
  * mientras no llegue ninguno, la cabecera HTTP `Date` (precisión de 1 s) sirve de respaldo.
  */
-import { useSyncExternalStore } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 
 import { onApiResponse } from '@/api/client'
 
@@ -62,3 +62,14 @@ export function resetServerClock() {
 }
 
 onApiResponse((res) => syncFromDateHeader(res.headers.get('Date')))
+
+/** Hora del servidor (ms) que se actualiza cada `intervalMs` (por defecto 1 s). */
+export function useServerNow(intervalMs = 1000): number {
+  const offset = useServerOffset()
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), intervalMs)
+    return () => clearInterval(t)
+  }, [intervalMs])
+  return now + offset
+}

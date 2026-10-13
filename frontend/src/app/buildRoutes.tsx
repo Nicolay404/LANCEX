@@ -27,16 +27,19 @@ import { NotFoundPage } from './pages/NotFoundPage'
 const AuctionDetailPage = lazy(() => import('@/packages/auction/AuctionDetailPage'))
 const NewAuctionPage = lazy(() => import('@/packages/auction-create/NewAuctionPage'))
 const AuctionResultPage = lazy(() => import('@/packages/auction/AuctionResultPage'))
+const RatePage = lazy(() => import('@/packages/auction/RatePage'))
 const MyAuctionsPage = lazy(() => import('@/packages/my-auctions/MyAuctionsPage'))
 const MyBidsPage = lazy(() => import('@/packages/my-auctions/MyBidsPage'))
 const NotificationsPage = lazy(() => import('@/packages/notifications/NotificationsPage'))
 const WatchingPage = lazy(() => import('@/packages/my-auctions/WatchingPage'))
+const CandleVerifyPage = lazy(() => import('@/packages/candle/CandleVerifyPage'))
 const PublicProfilePage = lazy(() => import('@/packages/profile/PublicProfilePage'))
 const AccountPage = lazy(() => import('@/packages/account/AccountPage'))
 const UserPanelPage = lazy(() => import('@/packages/user/UserPanelPage'))
 const ModerationHomePage = lazy(() => import('@/packages/moderation/ModerationHomePage'))
 const AdminHomePage = lazy(() => import('@/packages/admin/AdminHomePage'))
 const OrgHomePage = lazy(() => import('@/packages/org/OrgHomePage'))
+const OrganizationsPage = lazy(() => import('@/packages/org/OrganizationsPage'))
 const MyListingsPage = lazy(() => import('@/packages/listings/MyListingsPage'))
 const NewListingPage = lazy(() => import('@/packages/listings/NewListingPage'))
 const EditListingPage = lazy(() => import('@/packages/listings/EditListingPage'))
@@ -50,6 +53,7 @@ export function buildRoutes(me: UserMe | null): RouteObject[] {
     { index: true, element: <CatalogPage /> },
     { path: 'subastas/:id', element: withSuspense(<AuctionDetailPage />) },
     { path: 'subastas/:id/resultado', element: withSuspense(<AuctionResultPage />) },
+    { path: 'subastas/:id/verificar-vela', element: withSuspense(<CandleVerifyPage />) },
     { path: 'usuarios/:id', element: withSuspense(<PublicProfilePage />) },
   ]
 
@@ -83,6 +87,9 @@ export function buildRoutes(me: UserMe | null): RouteObject[] {
       { path: 'mis-publicaciones/:id/editar', element: withSuspense(<EditListingPage />) },
     )
   }
+  if (hasCapability(me, Cap.RATING_SUBMIT)) {
+    children.push({ path: 'calificar/:auctionId', element: withSuspense(<RatePage />) })
+  }
   if (hasCapability(me, Cap.NOTIFICATION_READ_OWN)) {
     children.push({ path: 'notificaciones', element: withSuspense(<NotificationsPage />) })
   }
@@ -106,6 +113,9 @@ export function buildRoutes(me: UserMe | null): RouteObject[] {
   }
   if (hasAnyCapability(me, ADMIN_CAPS)) {
     children.push({ path: 'admin/*', element: withSuspense(<AdminHomePage />) })
+  }
+  if (hasCapability(me, Cap.ORGANIZATION_CREATE)) {
+    children.push({ path: 'organizaciones', element: withSuspense(<OrganizationsPage />) })
   }
   if (me && me.organizations.length > 0) {
     children.push({ path: 'org/:orgId/*', element: withSuspense(<OrgHomePage />) })

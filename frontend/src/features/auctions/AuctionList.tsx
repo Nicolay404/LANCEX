@@ -16,16 +16,23 @@ export interface StatusTab {
 }
 
 /**
- * Lista de subastas del usuario (`mine=owner|participating`) con pestañas por estado.
+ * Lista de subastas (`mine=owner|participating|watching` o filtrada por mecanismo) con pestañas por estado.
  * La pestaña vive en la URL (`?estado=`), no en localStorage.
  */
 export function AuctionList({
   mine,
+  mechanism,
+  organization,
+  seller,
   tabs,
   empty,
   linkFor,
 }: {
-  mine: NonNullable<CatalogFilters['mine']>
+  /** Sin `mine`: catálogo público (p. ej. oportunidades inversas para proveedores). */
+  mine?: NonNullable<CatalogFilters['mine']>
+  mechanism?: CatalogFilters['mechanism']
+  organization?: string
+  seller?: string
   tabs: StatusTab[]
   empty: string
   linkFor?: (a: AuctionSummary) => string | undefined
@@ -34,7 +41,10 @@ export function AuctionList({
   const current = tabs.find((t) => t.status === (params.get('estado') ?? '')) ?? tabs[0]!
   const page = Math.max(1, Number(params.get('page')) || 1)
   const filters: CatalogFilters = {
-    mine,
+    ...(mine ? { mine } : {}),
+    ...(mechanism ? { mechanism } : {}),
+    ...(organization ? { organization } : {}),
+    ...(seller ? { seller } : {}),
     status: current.status,
     ordering: '-created_at',
     page,

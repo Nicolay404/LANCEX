@@ -23,8 +23,8 @@ export const STATUS_LABEL: Record<AuctionStatus, string> = {
 export const STATUS_TONE: Record<AuctionStatus, string> = {
   draft: 'bg-muted text-muted-foreground',
   scheduled: 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300',
-  active: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300',
-  closed: 'bg-muted text-foreground',
+  active: 'bg-live text-white',
+  closed: 'bg-foreground/85 text-background',
   cancelled: 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300',
 }
 
