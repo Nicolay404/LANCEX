@@ -6,22 +6,24 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.catalog import services
-from apps.catalog.services import procurement
+from apps.catalog.services import images, procurement
 from apps.core.capabilities import Cap, OrgCap
 from apps.core.permissions import ByMethod, HasCapability, HasOrgCapability, Public
 
 from .serializers import (
     CategorySerializer,
+    ImageConfirmInput,
     ListingInput,
     ListingOwnerSerializer,
     ProcurementRequestInput,
+    UploadUrlInput,
     procurement_payload,
 )
 
 
 def listing_payload(listing) -> dict:
     listing.editable = services.is_editable(listing)
-    return ListingOwnerSerializer(listing).data
+    return {**ListingOwnerSerializer(listing).data, "images": images.signed_images(listing.pk)}
 
 
 class CategoryListView(APIView):
@@ -80,3 +82,40 @@ class ProcurementRequestDetailView(APIView):
 
     def get(self, request, request_id):
         return Response(procurement_payload(procurement.get_public(request_id)))
+
+
+class ImageUploadUrlView(APIView):
+    """`POST /listings/{id}/images/upload-url/`: valida tipo y tamaño declarados y firma una ruta del servidor."""
+
+    permission_classes = [HasCapability(Cap.LISTING_MANAGE_OWN)]
+
+    @extend_schema(request=UploadUrlInput)
+    def post(self, request, listing_id):
+        serializer = UploadUrlInput(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return Response(images.request_upload(request.user, listing_id, **serializer.validated_data))
+
+
+class ImageConfirmView(APIView):
+    """`POST /listings/{id}/images/`: valida los metadatos REALES del objeto antes de registrarlo."""
+
+    permission_classes = [HasCapability(Cap.LISTING_MANAGE_OWN)]
+
+    @extend_schema(request=ImageConfirmInput)
+    def post(self, request, listing_id):
+        serializer = ImageConfirmInput(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        image = images.confirm_upload(request.user, listing_id, **serializer.validated_data)
+        return Response(
+            {"id": str(image.pk), "position": image.position, "content_type": image.content_type},
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class ImageDeleteView(APIView):
+    permission_classes = [HasCapability(Cap.LISTING_MANAGE_OWN)]
+
+    @extend_schema(request=None, responses={204: None})
+    def delete(self, request, listing_id, image_id):
+        images.delete_image(request.user, listing_id, image_id)
+        return Response(status=status.HTTP_204_NO_CONTENT)

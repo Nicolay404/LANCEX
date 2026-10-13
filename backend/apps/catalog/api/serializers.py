@@ -40,7 +40,17 @@ class ListingOwnerSerializer(serializers.Serializer):
     editable = serializers.BooleanField()
 
 
-class RequirementInput(serializers.Serializer):
+class UploadUrlInput(StrictInputMixin, serializers.Serializer):
+    content_type = serializers.CharField(max_length=40)
+    size_bytes = serializers.IntegerField(min_value=1)
+
+
+class ImageConfirmInput(StrictInputMixin, serializers.Serializer):
+    storage_path = serializers.CharField(max_length=200)
+    position = serializers.IntegerField(min_value=0, max_value=5)
+
+
+class RequirementInput(StrictInputMixin, serializers.Serializer):
     code = serializers.CharField(max_length=10)
     description = serializers.CharField(max_length=300)
 

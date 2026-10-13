@@ -88,3 +88,22 @@ class ProcurementRequest(models.Model):
 
     def __str__(self) -> str:
         return self.title
+
+
+class ListingImage(models.Model):
+    """Imagen en el bucket privado `listing-images`. La ruta la genera el servidor."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    listing = models.ForeignKey(Listing, on_delete=models.DO_NOTHING, db_column="listing_id", related_name="images")
+    storage_path = models.TextField(unique=True)
+    content_type = models.CharField(max_length=20)
+    size_bytes = models.IntegerField()
+    position = models.SmallIntegerField()
+    created_at = models.DateTimeField(db_default=ClockTimestamp())
+
+    class Meta:
+        managed = False
+        db_table = "listing_image"
+
+    def __str__(self) -> str:
+        return self.storage_path

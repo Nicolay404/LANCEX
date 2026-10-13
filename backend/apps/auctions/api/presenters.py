@@ -143,7 +143,7 @@ def detail(auction: Auction, ev: Effective, now: datetime, user, caps: Capabilit
         "description": listing.description if listing else None,
         "item_condition": listing.item_condition if listing else None,
         "location_city": listing.location_city if listing else None,
-        "images": [],  # LX-70
+        "images": _images(auction),
         "seller": {
             "id": str(auction.owner_user_id),
             "display_name": auction.owner_user.display_name,
@@ -252,6 +252,12 @@ def participant_payload(participant, auction: Auction, now, *, full: bool) -> di
         "registered_at": participant.registered_at,
         "decided_at": participant.decided_at,
     }
+
+
+def _images(auction: Auction) -> list[dict]:
+    from apps.catalog.services import images
+
+    return images.signed_images(auction.listing_id)
 
 
 def _soft_close(auction: Auction) -> dict | None:

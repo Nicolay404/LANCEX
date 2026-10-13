@@ -188,3 +188,18 @@ endpoints:
     methods:
       GET: {visitor: 200, user: 200, buyer_member: 200, supplier_member: 200, moderator: 200, admin: 200}
     notes: "Subasta de vela cerrada. Antes del cierre -> 409 NOT_REVEALED_YET; otra modalidad -> 409 MECHANISM_MISMATCH."
+
+  - route: /api/v1/listings/{listing_id}/images/upload-url/
+    methods:
+      POST: {visitor: 401, user: 404, buyer_member: 404, supplier_member: 404, moderator: 403, admin: 403}
+    notes: "Con publicación ajena -> 404; dueño -> 200 con URL firmada; tipo/tamaño inválidos -> 400."
+
+  - route: /api/v1/listings/{listing_id}/images/
+    methods:
+      POST: {visitor: 401, user: 404, buyer_member: 404, supplier_member: 404, moderator: 403, admin: 403}
+    notes: "Valida metadatos reales en Storage. Dueño -> 201."
+
+  - route: /api/v1/listings/{listing_id}/images/{image_id}/
+    methods:
+      DELETE: {visitor: 401, user: 404, buyer_member: 404, supplier_member: 404, moderator: 403, admin: 403}
+    notes: "Solo sin subasta abierta (LISTING_LOCKED)."
