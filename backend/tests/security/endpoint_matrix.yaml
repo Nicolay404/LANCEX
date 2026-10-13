@@ -126,3 +126,60 @@ endpoints:
       PUT: {visitor: 401, user: 201, buyer_member: 201, supplier_member: 201, moderator: 403, admin: 403}
       DELETE: {visitor: 401, user: 404, buyer_member: 404, supplier_member: 404, moderator: 403, admin: 403}
     notes: "Solo la oferta propia. PUT con Idempotency-Key en sellada activa ajena (reintento 200); DELETE sin oferta vigente -> 404, con oferta -> 204."
+
+  - route: /api/v1/organizations/
+    methods:
+      POST: {visitor: 401, user: 201, buyer_member: 201, supplier_member: 201, moderator: 403, admin: 403}
+    notes: "Crea en pending; el creador es owner. RUC duplicado -> 409 RUC_ALREADY_REGISTERED."
+
+  - route: /api/v1/organizations/{organization_id}/
+    methods:
+      GET: {visitor: 401, user: 403, buyer_member: 404, supplier_member: 404, moderator: 403, admin: 403}
+      PATCH: {visitor: 401, user: 403, buyer_member: 404, supplier_member: 404, moderator: 403, admin: 403}
+    notes: "Con organización AJENA: miembro de otra -> 404; sin organizaciones -> 403. Miembro propio GET 200; PATCH solo owner."
+
+  - route: /api/v1/organizations/{organization_id}/members/
+    methods:
+      POST: {visitor: 401, user: 403, buyer_member: 404, supplier_member: 404, moderator: 403, admin: 403}
+    notes: "Solo owner de esa organización."
+
+  - route: /api/v1/organizations/{organization_id}/members/{user_id}/
+    methods:
+      DELETE: {visitor: 401, user: 403, buyer_member: 404, supplier_member: 404, moderator: 403, admin: 403}
+    notes: "LAST_OWNER si aplica."
+
+  - route: /api/v1/organizations/{organization_id}/transfer-ownership/
+    methods:
+      POST: {visitor: 401, user: 403, buyer_member: 404, supplier_member: 404, moderator: 403, admin: 403}
+    notes: "Step-up con contraseña."
+
+  - route: /api/v1/moderation/organizations/
+    methods:
+      GET: {visitor: 401, user: 403, buyer_member: 403, supplier_member: 403, moderator: 200, admin: 200}
+    notes: "Bandeja."
+
+  - route: /api/v1/moderation/organizations/{organization_id}/decision/
+    methods:
+      POST: {visitor: 401, user: 403, buyer_member: 403, supplier_member: 403, moderator: 200, admin: 200}
+    notes: "verified|rejected con nota."
+
+  - route: /api/v1/procurement-requests/
+    methods:
+      POST: {visitor: 401, user: 403, buyer_member: 201, supplier_member: 403, moderator: 403, admin: 403}
+    notes: "organization_id de una compradora verificada propia."
+
+  - route: /api/v1/procurement-requests/{request_id}/
+    methods:
+      GET: {visitor: 200, user: 200, buyer_member: 200, supplier_member: 200, moderator: 200, admin: 200}
+    notes: "Público."
+
+  - route: /api/v1/auctions/{auction_id}/participants/
+    methods:
+      GET: {visitor: 401, user: 403, buyer_member: 200, supplier_member: 200, moderator: 403, admin: 403}
+      POST: {visitor: 401, user: 403, buyer_member: 403, supplier_member: 201, moderator: 403, admin: 403}
+    notes: "GET: compradora todas, proveedor las suyas. POST antes de starts_at; CONFLICT_OF_INTEREST si aplica."
+
+  - route: /api/v1/auctions/{auction_id}/participants/{participant_id}/decision/
+    methods:
+      POST: {visitor: 401, user: 403, buyer_member: 200, supplier_member: 403, moderator: 403, admin: 403}
+    notes: "Miembro de la compradora de ESA subasta, antes de starts_at."

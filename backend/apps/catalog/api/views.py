@@ -6,10 +6,17 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.catalog import services
-from apps.core.capabilities import Cap
-from apps.core.permissions import ByMethod, HasCapability, Public
+from apps.catalog.services import procurement
+from apps.core.capabilities import Cap, OrgCap
+from apps.core.permissions import ByMethod, HasCapability, HasOrgCapability, Public
 
-from .serializers import CategorySerializer, ListingInput, ListingOwnerSerializer
+from .serializers import (
+    CategorySerializer,
+    ListingInput,
+    ListingOwnerSerializer,
+    ProcurementRequestInput,
+    procurement_payload,
+)
 
 
 def listing_payload(listing) -> dict:
@@ -51,3 +58,25 @@ class ListingDetailView(APIView):
         serializer.is_valid(raise_exception=True)
         listing = services.update_listing(request.user, listing_id, **serializer.validated_data)
         return Response(listing_payload(listing), status=status.HTTP_200_OK)
+
+
+class ProcurementRequestCreateView(APIView):
+    """`POST /procurement-requests/`: miembro de una compradora verificada (capacidad por `organization_id`)."""
+
+    permission_classes = [HasOrgCapability(OrgCap.PROCUREMENT_MANAGE)]
+
+    @extend_schema(request=ProcurementRequestInput)
+    def post(self, request):
+        serializer = ProcurementRequestInput(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = dict(serializer.validated_data)
+        data["mandatory_requirements"] = [dict(r) for r in data.get("mandatory_requirements", [])]
+        obj = procurement.create_request(request.user, **data)
+        return Response(procurement_payload(procurement.get_public(obj.pk)), status=status.HTTP_201_CREATED)
+
+
+class ProcurementRequestDetailView(APIView):
+    permission_classes = [Public]
+
+    def get(self, request, request_id):
+        return Response(procurement_payload(procurement.get_public(request_id)))

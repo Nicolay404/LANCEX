@@ -11,6 +11,15 @@
 
 ## Handoffs activos
 
+- Fecha/hora: 2026-10-12T20:13:16-05:00
+- Issue/PR: LX-52 (pruebas B2B)
+- Para rol: Base de datos
+- Estado: listo para consumir
+- Contexto: modelos nuevos `ProcurementRequest`, `AuctionParticipant`; `Auction.procurement_request` y `Bid.organization` pasan a FK (misma columna, sin cambio de esquema). La fórmula del total, la admisión congelada (`not_reviewed`) y `NOT_ADMITTED` ya tienen pruebas.
+- Archivos, tablas o endpoints afectados: `organization`, `organization_membership`, `procurement_request`, `auction_participant`, `bid` (`organization_id`, `unit_price`, `shipping_cost`). El job ejecuta `UPDATE auction_participant ... not_reviewed`.
+- Acción requerida: ampliar LX-52 con casos límite de redondeo y cantidades con 3 decimales. Sin cambios de esquema.
+- Cómo validar: `LANCEX_REQUIRE_DB=1 python -m pytest tests/auctions/test_reverse_flow.py tests/auctions/test_domain_reverse.py -q`.
+
 - Fecha/hora: 2026-10-12T19:55:50-05:00
 - Issue/PR: LX-41, LX-43 (sobre cerrado)
 - Para rol: Base de datos / seguridad

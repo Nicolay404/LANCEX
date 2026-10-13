@@ -24,6 +24,7 @@ from apps.audit.services import record
 from apps.core.time import time_source
 from apps.notifications import services as notifications
 
+from . import participants
 from .snapshot import evaluate
 
 logger = logging.getLogger("lancex.closing")
@@ -63,6 +64,7 @@ def close_auction(auction_id, *, skip_locked: bool = False) -> CloseResult:
         auction.status = Status.CLOSED
         auction.outcome = result.outcome
         auction.winner_user_id = result.winner_user_id
+        auction.winner_organization_id = result.winner_organization_id
         auction.final_price = result.final_price
         auction.closed_at = now
         if result.outcome == "awarded":
@@ -73,6 +75,7 @@ def close_auction(auction_id, *, skip_locked: bool = False) -> CloseResult:
                 "status",
                 "outcome",
                 "winner_user_id",
+                "winner_organization_id",
                 "final_price",
                 "closed_at",
                 "settlement_status",
@@ -88,6 +91,7 @@ def close_auction(auction_id, *, skip_locked: bool = False) -> CloseResult:
             data={
                 "outcome": result.outcome,
                 "winner_user_id": result.winner_user_id,
+                "winner_organization_id": result.winner_organization_id,
                 "final_price": None if result.final_price is None else f"{result.final_price:.2f}",
                 "bid_count": auction.bid_count,
             },
@@ -106,8 +110,16 @@ def _result_records(auction: Auction) -> list[BidRecord]:
         offers = SealedOffer.objects.filter(auction_id=auction.pk, is_current=True, status="submitted")
         return [BidRecord(seq=o.seq, bidder_user_id=str(o.bidder_user_id), amount=o.amount) for o in offers]
     return [
-        BidRecord(seq=b.seq, bidder_user_id=str(b.bidder_user_id), amount=b.amount, counted=b.counted)
-        for b in Bid.objects.filter(auction_id=auction.pk).only("seq", "bidder_user_id", "amount", "counted")
+        BidRecord(
+            seq=b.seq,
+            bidder_user_id=str(b.bidder_user_id),
+            amount=b.amount,
+            counted=b.counted,
+            organization_id=str(b.organization_id) if b.organization_id else None,
+        )
+        for b in Bid.objects.filter(auction_id=auction.pk).only(
+            "seq", "bidder_user_id", "amount", "counted", "organization_id"
+        )
     ]
 
 
@@ -150,6 +162,7 @@ def due_auction_ids(limit: int = BATCH_SIZE) -> list:
 def close_due_auctions(limit: int = BATCH_SIZE) -> int:
     closed = sum(close_auction(auction_id, skip_locked=True).closed for auction_id in due_auction_ids(limit))
     notify_watchers()
+    participants.freeze_unreviewed()
     _heartbeat(closed)
     return closed
 

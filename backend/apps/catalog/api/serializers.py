@@ -38,3 +38,35 @@ class ListingOwnerSerializer(serializers.Serializer):
     created_at = serializers.DateTimeField()
     updated_at = serializers.DateTimeField()
     editable = serializers.BooleanField()
+
+
+class RequirementInput(serializers.Serializer):
+    code = serializers.CharField(max_length=10)
+    description = serializers.CharField(max_length=300)
+
+
+class ProcurementRequestInput(StrictInputMixin, serializers.Serializer):
+    organization_id = serializers.UUIDField()
+    title = serializers.CharField(max_length=120)
+    specifications = serializers.CharField(max_length=5000)
+    quantity = serializers.CharField(max_length=20)  # texto decimal; el servicio valida hasta 3 decimales
+    unit = serializers.CharField(max_length=20)
+    mandatory_requirements = RequirementInput(many=True, required=False)
+    delivery_deadline = serializers.DateField()
+    delivery_location = serializers.CharField(max_length=120)
+
+
+def procurement_payload(obj) -> dict:
+    """Detalle público de una necesidad B2B."""
+    return {
+        "id": str(obj.pk),
+        "buyer_organization": {"id": str(obj.buyer_organization_id), "legal_name": obj.buyer_organization.legal_name},
+        "title": obj.title,
+        "specifications": obj.specifications,
+        "quantity": f"{obj.quantity:.3f}",
+        "unit": obj.unit,
+        "mandatory_requirements": obj.mandatory_requirements,
+        "delivery_deadline": obj.delivery_deadline,
+        "delivery_location": obj.delivery_location,
+        "created_at": obj.created_at,
+    }

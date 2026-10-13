@@ -19,6 +19,7 @@ ACTIONS = frozenset(
     {
         "user_registered",
         "organization_created",
+        "organization_updated",
         "organization_member_added",
         "organization_verified",
         "organization_rejected",

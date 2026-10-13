@@ -176,3 +176,22 @@
 - Pruebas ejecutadas y resultado real: ruff limpio; manage.py check sin errores; LANCEX_REQUIRE_DB=1 pytest: 355 passed (incluye no fuga de importes sellados en detalle/live/bids/result/catálogo/auditoría para público, otro participante, dueño y admin; ETag sin cambios al editar; ranking por audiencia; empate por seq vigente; 5 ofertas simultáneas -> 1 vigente).
 - Riesgos/bloqueos: verificación de la base Supabase pendiente de la contraseña de `lancex_app` (la compañera ya aplicó las tablas, según el humano).
 - Handoff/siguiente paso: FE (LX-42), BD (LX-41/43). Fase 5 tras integrar la Fase 4 en `main`.
+
+## 2026-10-12T20:13:16-05:00: CIERRE: Fase 5 backend (LX-50, LX-51, LX-54)
+- Humano responsable: Nicolay.
+- Herramienta/modelo IA: Claude (claude-opus-5-5).
+- Rama y commit: `feat/architect/fase-5` (desde `main` con la Fase 4) → `backend-lancex`.
+- Autorización: el humano pidió "Ahora sí continúa con las demás fases" tras integrar la Fase 4. Se interpreta como autorización explícita para encadenar las Fases 5, 6 y 7 sin esperar el merge de cada una (excepción a la regla de AGENTS.md, registrada aquí). Cada fase va en su propio commit con pruebas completas.
+- Objetivo: organizaciones B2B, necesidades, inscripción/calificación y subasta inversa según REGLAS §7, §8 y §15.
+- Archivos/documentos modificados: dominio `mechanisms/reverse.py`, `money.py` (precio unitario de 4 decimales, envío ≥ 0, `reverse_total`), `state.py`, `registry.py`, `proxy.py` (argumentos con nombre); `core/permissions.py` (`HasAnyOrgCapability`); `organizations/services` y `api`; `catalog` (`ProcurementRequest`, servicio y API); `auctions` (`AuctionParticipant`, FK `procurement_request` y `Bid.organization`, `visible_to` con miembros de la organización dueña, `services/participants.py`, inversa en `lifecycle`, `bidding`, `closing`, `snapshot`, presenters y vistas); `audit` (`organization_updated`); pruebas `test_domain_reverse.py`, `test_reverse_flow.py`; matriz; contrato; REGLAS §12; handoffs; estado compartido.
+- Decisiones/supuestos:
+  - Verificación de organizaciones por moderador adelantada de LX-77: sin ella la Fase 5 no es usable.
+  - Endpoints de organización con `HasAnyOrgCapability`: quien no es miembro recibe 404 desde el servicio (sin enumeración).
+  - Cualquier miembro activo de la compradora gestiona la subasta inversa (ROLES §4); el dueño es quien la creó.
+  - El proveedor que pertenece a varias organizaciones admitidas debe indicar `organization_id` en la oferta.
+  - Congelamiento en `starts_at`: el estado efectivo se calcula al leer (`rejected`/`not_reviewed`) y el job lo materializa.
+  - Seudónimos por organización ("Proveedor N"); el desglose (precio unitario, envío) solo para la propia organización; la compradora ve identidades al cerrar.
+  - Acción de auditoría nueva `organization_updated` (no estaba en el catálogo).
+- Pruebas ejecutadas y resultado real: ruff limpio; `manage.py check` sin errores; `LANCEX_REQUIRE_DB=1 pytest`: **392 passed** (fórmula con ROUND_HALF_UP, `OFFER_ABOVE_MAXIMUM` con máximo exacto aceptado, `ALREADY_LEADING` por organización, `NOT_ADMITTED`, compradora no oferta, `CONFLICT_OF_INTEREST`, `LAST_OWNER`, step-up, vuelta a `pending`, `not_reviewed`, visibilidad durante y tras el cierre, licitación desierta). Un fallo intermedio era de la prueba (nota de verificación de 2 caracteres).
+- Riesgos/bloqueos: ninguno nuevo; Supabase pendiente de la contraseña de `lancex_app`.
+- Handoff/siguiente paso: FE (LX-53), BD (LX-52). Fase 6 (vela).

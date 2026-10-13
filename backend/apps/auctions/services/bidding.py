@@ -36,6 +36,7 @@ from apps.core.capabilities import AccountStatus, PlatformRole
 from apps.core.errors import Conflict, Forbidden, LancexError, NotFound, RateLimited
 from apps.core.time import time_source
 from apps.notifications import services as notifications
+from apps.organizations import services as organizations
 
 from .snapshot import evaluate
 
@@ -61,6 +62,16 @@ def place_bid(user: User, auction_id, *, amount: Decimal, idempotency_key) -> Pl
 
 def set_proxy_limit(user: User, auction_id, *, max_amount: Decimal) -> PlaceBidResult:
     return _logged(auction_id, lambda: _set_proxy_limit(user, auction_id, max_amount))
+
+
+def place_reverse_offer(
+    user: User, auction_id, *, unit_price: Decimal, shipping_cost: Decimal, idempotency_key, organization_id=None
+) -> PlaceBidResult:
+    """Oferta a la baja de un proveedor admitido (REGLAS §7). El total lo calcula el servidor."""
+    return _logged(
+        auction_id,
+        lambda: _place_reverse(user, auction_id, unit_price, shipping_cost, idempotency_key, organization_id),
+    )
 
 
 def own_proxy_limit(user, auction_id) -> ProxyBidLimit | None:
@@ -158,6 +169,45 @@ def _set_proxy_limit(user: User, auction_id, max_amount: Decimal) -> PlaceBidRes
     return _result(bid, auction, user)
 
 
+def _place_reverse(user: User, auction_id, unit_price, shipping_cost, idempotency_key, organization_id):
+    from . import participants
+
+    _ensure_bidder(user)
+    with transaction.atomic():
+        auction, now = _lock(user, auction_id)
+        if auction.mechanism != "reverse":
+            raise Conflict(code="MECHANISM_MISMATCH", message="Esta subasta no es inversa.")
+
+        previous = Bid.objects.filter(
+            auction_id=auction.pk, bidder_user_id=user.pk, idempotency_key=idempotency_key
+        ).first()
+        if previous is not None:
+            if (previous.unit_price, previous.shipping_cost) != (unit_price, shipping_cost):
+                raise Conflict(code="IDEMPOTENCY_CONFLICT", message="La clave ya se usó con otra oferta.")
+            return PlaceBidResult(bid=previous, auction=auction, replayed=True)
+
+        state = _active_state(auction, now, None)
+        # ROLES §5: un miembro de la compradora no oferta en su propia subasta.
+        if organizations.active_membership(user, auction.organization_id):
+            raise domain_errors.bid_on_own_auction()
+        organization = participants.admitted_organization_for(user, auction, organization_id)
+        if Bid.objects.filter(
+            auction_id=auction.pk,
+            bidder_user_id=user.pk,
+            accepted_at__gt=now - timedelta(seconds=MIN_SECONDS_BETWEEN_BIDS),
+        ).exists():
+            raise RateLimited(details={"retry_after_s": MIN_SECONDS_BETWEEN_BIDS})
+
+        mechanism = registry.mechanism_for(state)
+        total = mechanism.total_for(state, unit_price, shipping_cost)
+        intent = BidIntent(
+            str(user.pk), total, organization_id=organization, unit_price=unit_price, shipping_cost=shipping_cost
+        )
+        outcome = mechanism.apply_bid(state, intent, now)
+        bid = _commit_outcome(auction, state, outcome, now, challenger=user, idempotency_key=idempotency_key, limits={})
+    return _result(bid, auction, user)
+
+
 # --- Motor común ------------------------------------------------------------------------------
 
 
@@ -196,6 +246,7 @@ def _active_state(auction: Auction, now, leader_limit: ProxyBidLimit | None):
 
 def _commit_outcome(auction, state, outcome: BidOutcome, now, *, challenger, idempotency_key, limits) -> Bid:
     previous_leader = str(auction.leader_user_id) if auction.leader_user_id else None
+    previous_org = str(auction.leader_organization_id) if auction.leader_organization_id else None
 
     created: list[Bid] = []
     for k, new_bid in enumerate(outcome.bids, start=1):
@@ -209,6 +260,9 @@ def _commit_outcome(auction, state, outcome: BidOutcome, now, *, challenger, ide
                 source=new_bid.source,
                 proxy_limit_id=limits.get(new_bid.bidder_user_id) if new_bid.source == "proxy" else None,
                 idempotency_key=idempotency_key if is_challenger_manual else None,
+                organization_id=new_bid.organization_id,
+                unit_price=new_bid.unit_price,
+                shipping_cost=new_bid.shipping_cost,
             )
         )
     if outcome.exhausted_proxy_user_ids:
@@ -220,10 +274,13 @@ def _commit_outcome(auction, state, outcome: BidOutcome, now, *, challenger, ide
     old_end = auction.ends_at
     auction.current_price = outcome.current_price
     auction.leader_user_id = outcome.leader_user_id
+    auction.leader_organization_id = outcome.leader_organization_id
     auction.bid_count += len(created)
     auction.ends_at = extended.ends_at
     auction.version += 1
-    auction.save(update_fields=["current_price", "leader_user_id", "bid_count", "ends_at", "version"])
+    auction.save(
+        update_fields=["current_price", "leader_user_id", "leader_organization_id", "bid_count", "ends_at", "version"]
+    )
 
     for bid in created:
         record(
@@ -243,7 +300,13 @@ def _commit_outcome(auction, state, outcome: BidOutcome, now, *, challenger, ide
             auction_id=auction.pk,
             data={"from": old_end.isoformat(), "to": extended.ends_at.isoformat()},
         )
-    if previous_leader and previous_leader != str(outcome.leader_user_id):
+    # En la inversa compite la organización: avisar si cambió la organización líder.
+    leader_changed = (
+        previous_org != outcome.leader_organization_id
+        if outcome.leader_organization_id is not None
+        else previous_leader != str(outcome.leader_user_id)
+    )
+    if previous_leader and leader_changed:
         notifications.notify(
             [previous_leader],
             "outbid",

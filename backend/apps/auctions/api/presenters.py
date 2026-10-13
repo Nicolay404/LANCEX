@@ -71,19 +71,54 @@ def reserve_info(auction: Auction) -> dict:
     return {"has_reserve": has_reserve, "reserve_met": met}
 
 
-def summary(auction: Auction, ev: Effective) -> dict:
+def is_reverse(auction: Auction) -> bool:
+    return auction.mechanism == "reverse"
+
+
+def maximum_allowed(ev: Effective):
+    if ev.state.config.mechanism != "reverse" or ev.status not in (Status.SCHEDULED, Status.ACTIVE):
+        return None
+    return registry.mechanism_for(ev.state).maximum_allowed(ev.state)
+
+
+def _title_and_category(auction: Auction):
+    if is_reverse(auction):
+        need = auction.procurement_request
+        return (need.title if need else None), None
     listing = auction.listing
+    if listing is None:
+        return None, None
+    return listing.title, {"id": listing.category_id, "name": listing.category.name}
+
+
+def _viewer_is_leader(auction: Auction, user) -> bool:
+    if not _uid(user):
+        return False
+    if is_reverse(auction):
+        return bool(auction.leader_organization_id) and str(auction.leader_organization_id) in _my_org_ids(user)
+    return _uid(user) == str(auction.leader_user_id)
+
+
+def _my_org_ids(user) -> set[str]:
+    from apps.organizations import services as organizations
+
+    return organizations.member_organization_ids(user)
+
+
+def summary(auction: Auction, ev: Effective) -> dict:
+    title, category = _title_and_category(auction)
     return {
         "id": str(auction.pk),
         "mechanism": auction.mechanism,
         "closing_policy": auction.closing_policy,
         "status": ev.status,
         "result_pending": ev.result_pending,
-        "title": listing.title if listing else None,
-        "category": {"id": listing.category_id, "name": listing.category.name} if listing else None,
+        "title": title,
+        "category": category,
         "currency": auction.currency,
         "current_price": to_str(_counters(auction)["current_price"]),
         "minimum_next_bid": to_str(minimum_next_bid(ev)),
+        "maximum_allowed": to_str(maximum_allowed(ev)),
         "bid_count": _counters(auction)["bid_count"],
         "active_offer_count": _counters(auction)["active_offer_count"],
         "starts_at": auction.starts_at,
@@ -116,6 +151,8 @@ def detail(auction: Auction, ev: Effective, now: datetime, user, caps: Capabilit
         "server_time": now,
         "version": auction.version,
     }
+    if is_reverse(auction):
+        data["reverse"] = _reverse_info(auction)
     if owner or is_staff_viewer(caps):
         data["reserve_price"] = to_str(auction.reserve_price)
         data["published_at"] = auction.published_at
@@ -123,12 +160,55 @@ def detail(auction: Auction, ev: Effective, now: datetime, user, caps: Capabilit
     if _uid(user):
         data["viewer"] = {
             "is_owner": owner,
-            "is_leader": _uid(user) == (str(auction.leader_user_id) if auction.leader_user_id else None),
+            "is_leader": _viewer_is_leader(auction, user),
             "watching": queries.is_watching(user, auction.pk),
             "my_proxy_max": _my_proxy_max(auction, user),  # solo el máximo PROPIO
             "my_sealed_offer": _my_sealed_offer(auction, user),  # solo la oferta PROPIA
         }
     return data
+
+
+def _reverse_info(auction: Auction) -> dict:
+    from apps.auctions.services import participants
+
+    need = auction.procurement_request
+    return {
+        "buyer_organization": {
+            "id": str(need.buyer_organization_id),
+            "legal_name": need.buyer_organization.legal_name,
+        },
+        "procurement_request_id": str(need.pk),
+        "specifications": need.specifications,
+        "quantity": f"{need.quantity:.3f}",
+        "unit": need.unit,
+        "mandatory_requirements": need.mandatory_requirements,
+        "delivery_deadline": need.delivery_deadline,
+        "delivery_location": need.delivery_location,
+        "reference_budget": to_str(auction.reference_budget),
+        "min_decrement": to_str(auction.min_decrement),
+        "admitted_count": participants.admitted_count(auction),
+        "legal_notice": "Simulación de compra entre privados. No es contratación pública ni sustituye a SERCOP.",
+    }
+
+
+def participant_payload(participant, auction: Auction, now, *, full: bool) -> dict:
+    from apps.auctions.services import participants
+
+    return {
+        "id": str(participant.pk),
+        "organization": {"id": str(participant.organization_id), "legal_name": participant.organization.legal_name},
+        "status": participants.effective_participant_status(participant, auction, now),
+        "compliance": participant.compliance,
+        "decision_reason": participant.decision_reason
+        or (
+            "not_reviewed"
+            if participants.effective_participant_status(participant, auction, now) == "rejected"
+            and participant.status == "registered"
+            else None
+        ),
+        "registered_at": participant.registered_at,
+        "decided_at": participant.decided_at,
+    }
 
 
 def _soft_close(auction: Auction) -> dict | None:
@@ -216,19 +296,51 @@ def live(auction: Auction, ev: Effective, now: datetime, user) -> dict:
         "result_pending": ev.result_pending,
         "current_price": to_str(_counters(auction)["current_price"]),
         "minimum_next_bid": to_str(minimum_next_bid(ev)),
+        "maximum_allowed": to_str(maximum_allowed(ev)),
         "bid_count": _counters(auction)["bid_count"],
         "active_offer_count": _counters(auction)["active_offer_count"],
         "ends_at": auction.ends_at,
         "reserve_met": reserve_info(auction)["reserve_met"],
         "server_time": now,
-        "viewer_is_leader": bool(_uid(user)) and _uid(user) == str(auction.leader_user_id),
+        "viewer_is_leader": _viewer_is_leader(auction, user),
     }
 
 
 def live_etag(auction: Auction, ev: Effective, user) -> str:
     # El estado efectivo cambia con el reloj sin tocar `version`: va en el ETag.
-    leader = int(bool(_uid(user)) and _uid(user) == str(auction.leader_user_id))
+    leader = int(_viewer_is_leader(auction, user))
     return f'"{auction.version}-{ev.status}-{leader}"'
+
+
+def reverse_history(bids, auction: Auction, ev: Effective, user, caps: CapabilitySet) -> list[dict]:
+    """Proveedores seudonimizados ("Proveedor N"); la compradora ve identidades al cerrar; staff siempre.
+    Cada proveedor ve el desglose (precio unitario y envío) solo de las ofertas de SU organización."""
+    from apps.auctions.models import Bid
+    from apps.organizations import services as organizations
+
+    order: dict[str, int] = {}
+    for org in Bid.objects.filter(auction_id=auction.pk).order_by("seq").values_list("organization_id", flat=True):
+        order.setdefault(str(org), len(order) + 1)
+    mine = _my_org_ids(user)
+    is_buyer = organizations.active_membership(user, auction.organization_id) is not None
+    reveal = is_staff_viewer(caps) or (is_buyer and ev.status == Status.CLOSED)
+    items = []
+    for bid in bids:
+        org = str(bid.organization_id)
+        own = org in mine
+        item = {
+            "seq": bid.seq,
+            "amount": to_str(bid.amount),
+            "accepted_at": bid.accepted_at,
+            "bidder": "Tu organización" if own else f"Proveedor {order.get(org, '?')}",
+        }
+        if own:
+            item["unit_price"] = f"{bid.unit_price:.4f}"
+            item["shipping_cost"] = to_str(bid.shipping_cost)
+        if reveal:
+            item["bidder_identity"] = {"organization_id": org, "legal_name": bid.organization.legal_name}
+        items.append(item)
+    return items
 
 
 def bid_history(bids, auction: Auction, ev: Effective, user, caps: CapabilitySet) -> list[dict]:
@@ -283,6 +395,12 @@ def result_view(auction: Auction, ev: Effective, user) -> dict:
         "cancelled_at": auction.cancelled_at,
         **reserve_info(auction),
     }
+    if is_reverse(auction) and auction.outcome == "awarded" and auction.winner_organization_id:
+        # Público tras el cierre: total ganador y proveedor ganador (matriz de visibilidad).
+        from apps.organizations.models import Organization
+
+        org = Organization.objects.only("legal_name").get(pk=auction.winner_organization_id)
+        data["winner_organization"] = {"id": str(org.pk), "legal_name": org.legal_name}
     if viewer:
         data["viewer"] = {"is_owner": owner, "is_winner": viewer == winner}
         if sealed_revealed(auction):

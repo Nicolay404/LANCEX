@@ -23,6 +23,8 @@ from apps.core.capabilities import AccountStatus, PlatformRole
 from apps.core.errors import Conflict, Forbidden, NotFound, ValidationFailed
 from apps.core.time import time_source
 from apps.notifications import services as notifications
+from apps.organizations import services as organizations
+from apps.organizations.models import Organization
 
 from .snapshot import evaluate
 
@@ -39,6 +41,8 @@ RULE_FIELDS = (
     "soft_close_window_s",
     "soft_close_extension_s",
     "soft_close_max_total_s",
+    "reference_budget",
+    "min_decrement",
 )
 TEXT_FIELDS = ("title", "description")  # se corrigen en la publicación mientras está `scheduled`
 
@@ -49,16 +53,20 @@ def _ensure_commercial_user(user: User) -> None:
 
 
 def _owned_for_update(user: User, auction_id) -> Auction:
+    """Dueño, o miembro activo de la organización dueña (ROLES-Y-PERMISOS.md §4)."""
     auction = Auction.objects.visible_to(user).select_for_update().filter(pk=auction_id).first()
     if auction is None:
         raise NotFound()
-    if auction.owner_user_id != user.pk:
-        raise Forbidden()
-    return auction
+    if auction.owner_user_id == user.pk:
+        return auction
+    if auction.organization_id and organizations.active_membership(user, auction.organization_id):
+        return auction
+    raise Forbidden()
 
 
 def _config_from(data: dict[str, Any], base: AuctionConfig | None = None) -> AuctionConfig:
-    values = {f: getattr(base, f) for f in RULE_FIELDS} if base else {}
+    # Además de las reglas, se conservan los datos derivados de la necesidad B2B (no editables aquí).
+    values = {f: getattr(base, f) for f in (*RULE_FIELDS, "quantity", "buyer_organization_id")} if base else {}
     values.update({k: v for k, v in data.items() if k in RULE_FIELDS})
     values.setdefault("proxy_enabled", False)
     if values.get("closing_policy") == "soft_close":
@@ -69,10 +77,19 @@ def _config_from(data: dict[str, Any], base: AuctionConfig | None = None) -> Auc
     return AuctionConfig(**values)
 
 
-def create_draft(user: User, *, listing_id, **data) -> Auction:
+MAX_OPEN_AUCTIONS_PER_ORGANIZATION = 10  # REGLAS §13
+
+
+def create_draft(user: User, *, listing_id=None, organization_id=None, procurement_request_id=None, **data):
     _ensure_commercial_user(user)
     config = _config_from(data)
     registry.validate_config(config)
+    if config.mechanism == "reverse":
+        return _create_reverse_draft(user, config, organization_id, procurement_request_id)
+    if organization_id or procurement_request_id:
+        raise ValidationFailed(details={"fields": {"organization_id": ["Solo aplica a la subasta inversa."]}})
+    if listing_id is None:
+        raise ValidationFailed(details={"fields": {"listing_id": ["Es obligatorio."]}})
 
     listing = Listing.objects.visible_to(user).filter(pk=listing_id).first()
     if listing is None:
@@ -106,6 +123,58 @@ def create_draft(user: User, *, listing_id, **data) -> Auction:
             entity_id=auction.pk,
             auction_id=auction.pk,
             data={"mechanism": config.mechanism, "closing_policy": config.closing_policy},
+        )
+    return auction
+
+
+def _create_reverse_draft(user: User, config: AuctionConfig, organization_id, procurement_request_id) -> Auction:
+    """Inversa B2B: la crea un miembro de una compradora verificada sobre una necesidad de esa organización."""
+    from apps.accounts.principal import load_principal
+    from apps.catalog.models import ProcurementRequest
+    from apps.core.capabilities import OrgCap, compute
+
+    if organization_id is None or procurement_request_id is None:
+        raise ValidationFailed(
+            details={"fields": {"procurement_request_id": ["La inversa necesita organización y necesidad B2B."]}}
+        )
+    if not compute(load_principal(user)).has_in_organization(OrgCap.AUCTION_CREATE_REVERSE, organization_id):
+        raise Forbidden(code="ORGANIZATION_NOT_VERIFIED", message="La organización no puede crear subastas inversas.")
+    need = ProcurementRequest.objects.filter(pk=procurement_request_id, buyer_organization_id=organization_id).first()
+    if need is None:
+        raise ValidationFailed(details={"fields": {"procurement_request_id": ["No pertenece a la organización."]}})
+
+    with transaction.atomic():
+        Organization.objects.select_for_update().only("id").get(pk=organization_id)
+        open_count = Auction.objects.filter(organization_id=organization_id, status__in=OPEN).count()
+        if open_count >= MAX_OPEN_AUCTIONS_PER_ORGANIZATION:
+            raise Conflict(
+                code="LIMIT_REACHED",
+                message="La organización alcanzó el máximo de subastas abiertas.",
+                details={"limit": MAX_OPEN_AUCTIONS_PER_ORGANIZATION},
+            )
+        try:
+            with transaction.atomic():
+                auction = Auction.objects.create(
+                    owner_user_id=user.pk,
+                    organization_id=organization_id,
+                    procurement_request_id=need.pk,
+                    **{f: getattr(config, f) for f in RULE_FIELDS},
+                )
+        except IntegrityError:
+            raise Conflict(
+                code="PROCUREMENT_HAS_AUCTION", message="La necesidad ya tiene una subasta asociada."
+            ) from None
+        record(
+            "auction_created",
+            actor_user_id=user.pk,
+            entity_type="auction",
+            entity_id=auction.pk,
+            auction_id=auction.pk,
+            data={
+                "mechanism": "reverse",
+                "closing_policy": config.closing_policy,
+                "organization_id": str(organization_id),
+            },
         )
     return auction
 
@@ -180,6 +249,9 @@ def publish(user: User, auction_id) -> Auction:
             "soft_close_window_s": config.soft_close_window_s,
             "soft_close_extension_s": config.soft_close_extension_s,
             "soft_close_max_total_s": config.soft_close_max_total_s,
+            "reference_budget": to_str(config.reference_budget),
+            "min_decrement": to_str(config.min_decrement),
+            "quantity": None if config.quantity is None else f"{config.quantity:.3f}",
         }
         auction.version += 1
         auction.save(

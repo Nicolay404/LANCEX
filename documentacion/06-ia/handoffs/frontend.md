@@ -9,6 +9,15 @@
 
 ## Handoffs activos
 
+- Fecha/hora: 2026-10-12T20:13:16-05:00
+- Issue/PR: LX-50, LX-51, LX-54 (Fase 5, B2B; rama `backend-lancex`)
+- Para rol: Frontend (LX-53)
+- Estado: listo para consumir
+- Contexto: organizaciones, necesidades B2B, inscripción/calificación de proveedores y subasta inversa.
+- Archivos, tablas o endpoints afectados: `POST /organizations/`, `GET|PATCH /organizations/{id}/` (incluye `members` y `my_role`), `POST /organizations/{id}/members/` (`{email}`), `DELETE /organizations/{id}/members/{user_id}/`, `POST /organizations/{id}/transfer-ownership/` (`{new_owner_user_id, password}`), `POST /procurement-requests/`, `GET /procurement-requests/{id}/`, `GET|POST /auctions/{id}/participants/` (`{organization_id, compliance: [{code, complies, comment}]}`), `POST /auctions/{id}/participants/{pid}/decision/` (`{status, reason}`), `GET /moderation/organizations/?status=pending`, `POST /moderation/organizations/{id}/decision/` (`{status, note}`, nota ≥ 3). Crear inversa: `POST /auctions/` con `mechanism: reverse`, `organization_id`, `procurement_request_id`, `reference_budget`, `min_decrement` (sin `listing_id` ni `starting_price`). Ofertar: `POST /auctions/{id}/bids/` con `{unit_price, shipping_cost}` (+ `organization_id` si el usuario está en varias admitidas) e `Idempotency-Key`.
+- Acción requerida: el detalle de una inversa trae `reverse` (necesidad, presupuesto, `admitted_count`, aviso legal "no es SERCOP") y `maximum_allowed` en vez de `minimum_next_bid`. El historial usa "Proveedor N" / "Tu organización" y muestra el desglose solo de la propia organización. Resultado público: `winner_organization`. `UserMe.organizations[].capabilities` decide los menús B2B. Nuevos códigos: `RUC_ALREADY_REGISTERED`, `ALREADY_MEMBER`, `ALREADY_REGISTERED`, `PROCUREMENT_HAS_AUCTION`.
+- Cómo validar: `tests/auctions/test_reverse_flow.py`.
+
 - Fecha/hora: 2026-10-12T19:55:50-05:00
 - Issue/PR: LX-40 (Fase 4, sobre cerrado; rama `backend-lancex`)
 - Para rol: Frontend (LX-42)

@@ -52,6 +52,10 @@
 | 409 | `PROXY_LIMIT_DECREASE_NOT_ALLOWED` | Intento de bajar el máximo |
 | 409 | `PROXY_NOT_ENABLED` | Se intenta fijar un máximo proxy en una subasta sin `proxy_enabled` |
 | 409 | `MECHANISM_MISMATCH` | Operación de otro mecanismo (puja en sobre cerrado u oferta sellada en ascendente) |
+| 409 | `RUC_ALREADY_REGISTERED` | Ya existe una organización con ese RUC |
+| 409 | `ALREADY_MEMBER` | El usuario ya es miembro activo de la organización |
+| 409 | `ALREADY_REGISTERED` | La organización ya está inscrita en esa subasta inversa |
+| 409 | `PROCUREMENT_HAS_AUCTION` | La necesidad B2B ya tiene una subasta asociada |
 | 409 | `RULES_LOCKED` | Edición de reglas tras publicar |
 | 409 | `LISTING_LOCKED` | Edición de una publicación con subasta no terminal (`draft`, `scheduled`, `active`) |
 | 409 | `LISTING_HAS_OPEN_AUCTION` | La publicación ya tiene una subasta `draft`, `scheduled` o `active` |
