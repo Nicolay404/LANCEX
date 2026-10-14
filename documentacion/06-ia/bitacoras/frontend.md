@@ -625,3 +625,23 @@
 - Pruebas ejecutadas y resultado real: typecheck y lint OK; Vitest 183/183 en verde (las pruebas de `/panel` siguen pasando sin cambios); `npm run build` OK; captura a 1600 px revisada.
 - Riesgos/bloqueos: ninguno.
 - Handoff/siguiente paso: commit + PR.
+
+## 2026-10-14T15:57:43-05:00: CIERRE: rediseño de Notificaciones (`/notificaciones`)
+- Humano responsable: Maria (FE)
+- Herramienta/modelo IA (si se conoce): Claude (Cowork), modelo configurado claude-opus-5-5
+- Rama y commit: `frontend-lancex`, sin commit (lo hace la humana).
+- Objetivo: mejorar la interfaz de Notificaciones.
+- Componentes/archivos modificados: `frontend/src/packages/notifications/NotificationsPage.tsx` (encabezado con contador de no leídas; filtro Todas/No leídas como selector con contador; avisos agrupados por día en hora de Guayaquil: Hoy, Ayer, fecha; cada aviso como tarjeta con icono y etiqueta de color según el tipo, hora relativa, marca "Nueva" y borde azul si no está leído; estado vacío con ilustración y enlace; "Marcar todas como leídas" se desactiva si no hay pendientes). El contador usa la misma consulta que la campana (comparten caché). Mismos endpoints.
+- Pruebas ejecutadas y resultado real: lint y prettier OK; Vitest 183/183 en verde (la prueba de `/notificaciones` pasa sin cambios); `npm run build` OK; captura revisada con datos de ejemplo interceptados en el navegador de prueba (la base local tenía un solo aviso).
+- Riesgos/bloqueos: ninguno.
+- Handoff/siguiente paso: commit + PR.
+
+## 2026-10-14T16:00:20-05:00: CIERRE: Notificaciones a ancho completo
+- Humano responsable: Maria (FE)
+- Herramienta/modelo IA (si se conoce): Claude (Cowork), modelo configurado claude-opus-5-5
+- Rama y commit: `frontend-lancex`, sin commit (lo hace la humana).
+- Objetivo: que `/notificaciones` use el ancho completo del layout como las demás páginas.
+- Componentes/archivos modificados: `frontend/src/packages/notifications/NotificationsPage.tsx` (se quita el límite `mx-auto max-w-4xl`).
+- Pruebas ejecutadas y resultado real: typecheck OK; prueba de `/notificaciones` en verde (10/10 en `phase3.test.tsx`).
+- Riesgos/bloqueos: ninguno.
+- Handoff/siguiente paso: commit + PR.
