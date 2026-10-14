@@ -15,6 +15,7 @@ export const meKeys = {
     ['me', 'participations', tab, page] as const,
   activity: (page: number) => ['me', 'activity', page] as const,
   sessions: ['auth', 'sessions'] as const,
+  mfa: ['auth', 'mfa'] as const,
 }
 
 export const fetchSummary = (signal?: AbortSignal) => api.get<MySummary>('/me/summary/', { signal })

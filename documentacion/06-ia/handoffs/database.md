@@ -11,6 +11,15 @@
 
 ## Handoffs activos
 
+- Fecha/hora: 2026-10-14T16:19:17-05:00
+- Issue/PR: migración `supabase/migrations/20261014120000_doble_factor_y_reset.sql` (rama `feat/architect/cuenta-y-actividad`, sin commit aún)
+- Para rol: Base de datos
+- Estado: **requiere aplicar tras el merge** (bloquea solo 2FA y restablecimiento; el resto de la app no cambia)
+- Contexto: tres tablas NUEVAS: `user_mfa` (secreto TOTP, privado), `mfa_recovery_code` y `password_reset_token` (solo hashes). No toca `app_user`. Grants mínimos a `lancex_app` y RLS con la política `lancex_app_backend`, como ADR-0007.
+- Archivos, tablas o endpoints afectados: las tres tablas; `MODELO-DE-DATOS-INICIAL.md` actualizado.
+- Acción requerida: tras el merge a `main`, `git pull` y `.\scripts\db\push_supabase.ps1`; luego `supabase migration list` y registrarlo en tu bitácora. Validada en local (Postgres 17) con `apply_local.ps1`.
+- Cómo validar: `LANCEX_REQUIRE_DB=1 python -m pytest tests/accounts/test_mfa_and_recovery.py`.
+
 - Fecha/hora: 2026-10-13T19:43:43-05:00
 - Issue/PR: `EMAXCONNSESSION` (pool de Supabase agotado) — rama `feat/architect/cuenta-y-actividad`, sin commit aún
 - Para rol: Frontend y Base de datos (todos los que corren el backend contra Supabase)

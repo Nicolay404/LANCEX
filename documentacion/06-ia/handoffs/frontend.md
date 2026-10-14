@@ -9,6 +9,24 @@
 
 ## Handoffs activos
 
+- Fecha/hora: 2026-10-14T16:31:18-05:00
+- Issue/PR: frontend de doble factor y restablecimiento de contraseña (hecho por ARQ a pedido del humano; rama `feat/architect/cuenta-y-actividad`, sin commit aún)
+- Para rol: Frontend
+- Estado: requiere revisión (reemplaza la "acción requerida" del handoff anterior sobre 2FA)
+- Contexto: implementado en tu área para no bloquear la demo: (1) `LoginPage` en dos pasos (`MfaStep`: código de la app o de respaldo; `MFA_SESSION_EXPIRED` vuelve al paso 1). (2) `/cuenta` → nueva `MfaSection` (`packages/account/MfaSection.tsx`): activar con QR + clave manual, códigos de respaldo mostrados una vez (copiar/descargar), regenerar y desactivar. (3) Ruta pública `/restablecer-contrasena` (`features/auth/ResetPasswordPage.tsx`, quita el token de la URL al abrir). (4) `/admin/usuarios`: "Restablecer contraseña" (muestra el enlace completo una vez) y "Quitar verificación en dos pasos". (5) `api/errors.ts`: códigos `INVALID_MFA_CODE`, `MFA_*` (sin ellos un 401 se trataba como sesión expirada). (6) Dependencia nueva `uqr@0.1.3` para el QR (ADR-0004, Enmienda 3). No toqué tu cambio pendiente de Notificaciones.
+- Archivos, tablas o endpoints afectados: `src/features/auth/{api,LoginPage,ResetPasswordPage}.tsx`, `src/components/QrCode.tsx`, `src/packages/account/{AccountPage,MfaSection}.tsx`, `src/packages/admin/UsersPage.tsx`, `src/features/admin/api.ts`, `src/features/me/{api,types}.ts`, `src/app/buildRoutes.tsx`, `src/api/errors.ts`, `package.json`/`package-lock.json`; prueba nueva `src/features/auth/mfa.test.tsx`.
+- Acción requerida: revisar estilo y textos según tu rediseño; si prefieres otra ubicación o diseño, cámbialo libremente (las pruebas describen el comportamiento esperado).
+- Cómo validar: `npx vitest run` (191 passed), `npx tsc -b --noEmit`, `npx eslint .`, `npm run build`; a mano con Google Authenticator contra el backend local.
+
+- Fecha/hora: 2026-10-14T16:19:17-05:00
+- Issue/PR: doble factor (TOTP) y restablecimiento de contraseña por admin (rama `feat/architect/cuenta-y-actividad`, sin commit aún)
+- Para rol: Frontend
+- Estado: listo para consumir cuando BD aplique la migración (sin ella, solo estas funciones responden 500)
+- Contexto: (1) **Login en dos pasos**: si `POST /auth/login/` responde `200 {"mfa_required": true}` NO hay sesión: pedir el código y enviar `POST /auth/login/mfa/ {code}` (6 dígitos o código de respaldo) → `UserMe`. `401 INVALID_MFA_CODE` = código malo; `401 MFA_SESSION_EXPIRED` = volver al paso 1. Usuarios sin 2FA: sin cambios. (2) **Mi cuenta → Seguridad**: `GET /auth/mfa/`; activar con `POST /auth/mfa/setup/ {password}` → mostrar `otpauth_uri` como QR (y `secret` para escribirlo a mano) → `POST /auth/mfa/enable/ {code}` → mostrar los 10 `recovery_codes` UNA vez (descargar/copiar). Desactivar y regenerar piden `{password, code}`. (3) **Ruta pública `/restablecer-contrasena?token=...`**: formulario de nueva contraseña → `POST /auth/password-reset/ {token, new_password}` → 204 y llevar al login. (4) **Admin → Usuarios**: acciones "Generar enlace de restablecimiento" (`POST /admin/users/{id}/password-reset/ {reason, password}` → mostrar `reset_path` una vez para copiarlo) y "Quitar doble factor" (`/mfa-reset/`).
+- Archivos, tablas o endpoints afectados: los 9 endpoints nuevos (CONTRATO §Autenticación y §Administración).
+- Acción requerida: implementar los flujos; no guardar secretos ni códigos en el navegador (ni `localStorage`); un QR se puede generar en el cliente desde `otpauth_uri` (si hace falta una librería de QR, justificarla por ADR-0004).
+- Cómo validar: `tests/accounts/test_mfa_and_recovery.py`; con Google Authenticator real contra el backend local.
+
 - Fecha/hora: 2026-10-13T19:43:43-05:00
 - Issue/PR: `EMAXCONNSESSION` (pool de Supabase agotado) — rama `feat/architect/cuenta-y-actividad`, sin commit aún
 - Para rol: Frontend y Base de datos (todos los que corren el backend contra Supabase)

@@ -63,6 +63,18 @@ Estructura exacta que espera Django: `session_key varchar(40) PK`, `session_data
 
 Para poder revocar todas las sesiones de un usuario (suspensión, cambio de rol o de contraseña) se agrega `user_id uuid NULL` con índice, que el backend completa al iniciar sesión mediante un `SessionStore` propio.
 
+### `user_mfa` (**privado**)
+
+Doble factor TOTP activo (`user_id` PK → `app_user`; sin fila = sin 2FA): `secret char(32)` base32 (RFC 6238), `last_step bigint` (anti-repetición), `enabled_at`. El secreto nunca sale del backend tras la activación. Tabla aparte (no columnas de `app_user`) para no cargar el secreto en cada petición.
+
+### `mfa_recovery_code`
+
+Códigos de respaldo de un solo uso: `user_id`, `code_hash char(64)` (SHA-256 del código normalizado, nunca el código), `used_at`, `created_at`.
+
+### `password_reset_token`
+
+Enlace de restablecimiento emitido por un admin: `user_id`, `token_hash char(64)` (SHA-256), `created_by_user_id`, `expires_at` (30 min), `used_at`, `created_at`; `CHECK (user_id <> created_by_user_id)`. Migración: `supabase/migrations/20261014120000_doble_factor_y_reset.sql`.
+
 ### `django_cache`
 
 Tabla de `DatabaseCache` de Django (estructura de `createcachetable`: `cache_key varchar(255) PK`, `value text`, `expires timestamptz` con índice), creada por SQL. La usan el bloqueo de login y los límites de login, registro y denuncias para que se compartan entre los tres backends (los límites generales `anon`/`user`/`bids` van en memoria: ADR-0004, Enmienda 1).

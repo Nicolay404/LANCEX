@@ -72,6 +72,25 @@ export const changeRole = (userId: Uuid, platform_role: string, reason: string, 
     password,
   })
 
+export interface PasswordResetLink {
+  /** Token de un solo uso: se muestra una vez y no se guarda en el cliente. */
+  token: string
+  expires_at: IsoDateTime
+  /** Ruta relativa de esta app, p. ej. `/restablecer-contrasena?token=...`. */
+  reset_path: string
+}
+
+/** Enlace de restablecimiento (30 min) para entregar al usuario. Step-up del admin. */
+export const issuePasswordReset = (userId: Uuid, reason: string, password: string) =>
+  api.post<PasswordResetLink>(`/admin/users/${encodeURIComponent(userId)}/password-reset/`, {
+    reason,
+    password,
+  })
+
+/** Quita el doble factor de quien perdió el teléfono y sus códigos. Step-up del admin. */
+export const resetUserMfa = (userId: Uuid, reason: string, password: string) =>
+  api.post<void>(`/admin/users/${encodeURIComponent(userId)}/mfa-reset/`, { reason, password })
+
 export const fetchAdminCategories = (signal?: AbortSignal) =>
   api.get<AdminCategory[]>('/admin/categories/', { signal })
 

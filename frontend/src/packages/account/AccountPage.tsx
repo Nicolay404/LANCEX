@@ -25,7 +25,9 @@ import { formatDateTime } from '@/lib/dates'
 import { applyServerFieldErrors } from '@/lib/formErrors'
 import { formatMoney } from '@/lib/money'
 
-/** `/cuenta` (capacidad `account.manage_own`): perfil, contraseña, sesiones y actividad. */
+import { MfaSection } from './MfaSection'
+
+/** `/cuenta` (capacidad `account.manage_own`): perfil, contraseña, 2FA, sesiones y actividad. */
 export default function AccountPage() {
   const me = useMe()
   const { logout, pending } = useLogout()
@@ -42,6 +44,7 @@ export default function AccountPage() {
 
       <ProfileForm me={me} />
       <PasswordForm />
+      <MfaSection />
       <SessionsSection />
       <ActivitySection />
 

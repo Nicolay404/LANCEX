@@ -13,6 +13,7 @@ import {
 import { GuestOnly } from '@/features/auth/GuestOnly'
 import { LoginPage } from '@/features/auth/LoginPage'
 import { RegisterPage } from '@/features/auth/RegisterPage'
+import { ResetPasswordPage } from '@/features/auth/ResetPasswordPage'
 
 import { CatalogPage } from '@/features/auctions/CatalogPage'
 
@@ -55,6 +56,8 @@ export function buildRoutes(me: UserMe | null): RouteObject[] {
     { path: 'subastas/:id/resultado', element: withSuspense(<AuctionResultPage />) },
     { path: 'subastas/:id/verificar-vela', element: withSuspense(<CandleVerifyPage />) },
     { path: 'usuarios/:id', element: withSuspense(<PublicProfilePage />) },
+    // Pública y sin GuestOnly: el enlace del admin debe funcionar aunque haya otra sesión abierta.
+    { path: 'restablecer-contrasena', element: <ResetPasswordPage /> },
   ]
 
   // Solo visitantes: con sesión, /ingresar y /registro llevan a ?next o al inicio.

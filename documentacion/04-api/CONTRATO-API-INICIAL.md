@@ -33,6 +33,8 @@
 | 400 | `MECHANISM_COMBINATION_NOT_ALLOWED` | Combinación fuera de la matriz |
 | 401 | `AUTH_REQUIRED` | Sin sesión |
 | 401 | `INVALID_CREDENTIALS` | Login fallido (mensaje genérico) |
+| 401 | `INVALID_MFA_CODE` | Segundo factor incorrecto o ya usado (suma al bloqueo de la cuenta) |
+| 401 | `MFA_SESSION_EXPIRED` | `/auth/login/mfa/` sin login pendiente o pasados 5 min: volver a `/auth/login/` |
 | 403 | `FORBIDDEN` | Sin permiso sobre el objeto |
 | 403 | `CSRF_FAILED` | Falta o no coincide el token CSRF |
 | 403 | `BID_ON_OWN_AUCTION` | Dueño u organización dueña intenta pujar |
@@ -69,6 +71,7 @@
 | 409 | `ALREADY_REPORTED` | El usuario ya reportó ese objeto |
 | 409 | `LAST_OWNER` / `LAST_ADMIN` | Se intenta dejar sin propietario a una organización o sin admin a la plataforma |
 | 409 | `EMAIL_ALREADY_REGISTERED` | Registro duplicado |
+| 409 | `MFA_ALREADY_ENABLED` / `MFA_NOT_ENABLED` / `MFA_SETUP_REQUIRED` | Estado del doble factor incompatible con la acción |
 | 429 | `RATE_LIMITED` | Throttling o login bloqueado 15 min tras 5 fallos por email (`details.retry_after_s`) |
 | 500 | `INTERNAL_ERROR` | Error no controlado (sin detalles internos) |
 | 503 | `STORAGE_UNAVAILABLE` | Supabase Storage no responde (subida de imágenes); el detalle se muestra sin imágenes |
@@ -85,13 +88,20 @@ Leyenda de acceso: **P** público, **A** usuario autenticado con rol `user`, **D
 |---|---|---|---|
 | GET | `/auth/csrf/` | P | Establece cookie `csrftoken`. `204` |
 | POST | `/auth/register/` | P | `{email, password, display_name}` → `201` + sesión iniciada |
-| POST | `/auth/login/` | P | `{email, password}` → `200` `UserMe` |
+| POST | `/auth/login/` | P | `{email, password}` → `200` `UserMe`. Si la cuenta tiene 2FA: `200 {"mfa_required": true}` **sin** sesión iniciada |
+| POST | `/auth/login/mfa/` | P | `{code}` (6 dígitos de la app o código de respaldo `XXXX-XXXX-XXXX-XXXX`) → `200` `UserMe`. Válido 5 min tras el primer paso; throttle `mfa` 10/min |
 | POST | `/auth/logout/` | sesión | `204`; borra la sesión |
 | GET | `/auth/me/` | sesión | `UserMe` |
 | PATCH | `/auth/me/` | sesión | `{display_name, bio, location_city}` (parcial; `bio` ≤ 300 sin URLs, `""` la borra); cualquier otro campo → `UNKNOWN_FIELD` |
 | GET | `/auth/sessions/` | sesión | Mis sesiones activas `{id (hash, nunca la clave), is_current, expires_at}` |
 | POST | `/auth/sessions/revoke-others/` | sesión | Cierra las demás sesiones; mantiene la actual → `{revoked}` |
 | POST | `/auth/password/` | sesión | `{current_password, new_password}`; cierra las demás sesiones |
+| GET | `/auth/mfa/` | sesión | `{enabled, enabled_at, recovery_codes_remaining}` (nunca el secreto) |
+| POST | `/auth/mfa/setup/` | sesión | `{password}` (step-up) → `{secret, otpauth_uri}` para el QR; `no-store` |
+| POST | `/auth/mfa/enable/` | sesión | `{code}` → `201 {recovery_codes: [10]}` (se muestran **una sola vez**); cierra las demás sesiones |
+| POST | `/auth/mfa/disable/` | sesión | `{password, code}` (code de la app o de respaldo) → `204` |
+| POST | `/auth/mfa/recovery-codes/` | sesión | `{password, code}` → `{recovery_codes}` nuevos; los anteriores dejan de valer |
+| POST | `/auth/password-reset/` | P | `{token, new_password}` con el enlace que generó un admin → `204`; cierra todas las sesiones. Token inválido/vencido/usado → `400` (`fields.token`). No salta el 2FA |
 | GET | `/users/{id}/` | P | Perfil público: `display_name`, `bio`, `location_city`, reputación, `member_since` (nunca email). Sus subastas: `GET /auctions/?seller={id}` |
 
 `UserMe` (única fuente para construir la interfaz; ADR-0006):
@@ -203,6 +213,8 @@ Leyenda de acceso: **P** público, **A** usuario autenticado con rol `user`, **D
 | GET | `/admin/users/?q=&role=&status=` | ADM | Búsqueda de usuarios |
 | POST | `/admin/users/{id}/reactivate/` | ADM | `{reason}` |
 | POST | `/admin/users/{id}/role/` | ADM | `{platform_role, reason, password}` (step-up; `LAST_ADMIN`) |
+| POST | `/admin/users/{id}/password-reset/` | ADM | `{reason, password}` (step-up; nunca a sí mismo) → `201 {token, expires_at, reset_path}`: enlace de un solo uso, 30 min, mostrado una vez (`no-store`). Invalida el anterior |
+| POST | `/admin/users/{id}/mfa-reset/` | ADM | `{reason, password}` → `204`: quita el 2FA (teléfono y códigos perdidos); cierra sus sesiones |
 | GET/POST | `/admin/categories/` | ADM | Listar (incluye inactivas) y crear `{name, slug}` |
 | PATCH | `/admin/categories/{id}/` | ADM | Renombrar o activar/desactivar `{name, is_active}` |
 | GET | `/admin/audit-events/?auction_id=&actor_id=&action=&from=&to=` | ADM | Consulta de auditoría |

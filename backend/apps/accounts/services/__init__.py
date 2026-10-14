@@ -20,7 +20,7 @@ from apps.core.capabilities import AccountStatus, MembershipStatus, PlatformRole
 from apps.core.errors import AuthenticationRequired, Conflict, Forbidden, RateLimited
 from apps.organizations.models import OrganizationMembership
 
-from . import lockout
+from . import lockout, mfa
 from .validation import (
     check_password_strength,
     clean_bio,
@@ -58,7 +58,9 @@ def register(request, *, email: str, password: str, display_name: str) -> User:
     return user
 
 
-def login(request, *, email: str, password: str) -> User:
+def login(request, *, email: str, password: str) -> User | None:
+    """Devuelve el usuario autenticado, o None si su cuenta tiene 2FA: queda pendiente del
+    segundo factor (`mfa.complete_login`) y todavía NO hay sesión iniciada."""
     email = normalize_email(email)
     if lockout.is_locked(email):
         security_logger.warning("Login bloqueado temporalmente", extra={"event": "login_locked"})
@@ -76,6 +78,12 @@ def login(request, *, email: str, password: str) -> User:
         )
         raise Forbidden(code="ACCOUNT_SUSPENDED", message="Tu cuenta está suspendida.")
 
+    if mfa.is_enabled(user):
+        # El bloqueo NO se reinicia aquí: los códigos fallidos siguen sumando a la misma cuenta.
+        mfa.begin_login(request, user)
+        return None
+
+    mfa.clear_pending(request)
     lockout.reset(email)
     django_login(_http(request), user, backend=MODEL_BACKEND)  # rota la clave de sesión (T12)
     return user

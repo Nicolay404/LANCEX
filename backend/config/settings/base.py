@@ -150,6 +150,8 @@ REST_FRAMEWORK = {
         "anon": "120/min",
         "user": "120/min",
         "login": "5/min",
+        "mfa": "10/min",  # segundo paso del login (además, 5 fallos bloquean la cuenta 15 min)
+        "password_reset": "5/min",
         "register": "3/min",
         "bids": "30/min",
         "reports": "10/day",

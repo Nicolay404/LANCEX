@@ -87,3 +87,5 @@ Una prueba recorre **todas** las rutas del URLConf y, para cada combinación de 
 | El registro revela si un email ya existe (`EMAIL_ALREADY_REGISTERED`) | Sin verificación por correo no hay alternativa usable | Throttling de registro 3/min por IP |
 | Personas con acceso a Supabase pueden leer datos privados | Los 3 integrantes administran la base | Uso del Table Editor solo lectura, auditoría, nada de datos reales |
 | Dependencia única de Supabase | Decisión de infraestructura (ADR-0004) | Mensaje de servicio no disponible |
+| Secreto TOTP en claro en `user_mfa` | El servidor lo necesita para verificar; cifrarlo exigiría una clave compartida entre las 3 laptops | Solo `lancex_app` + RLS; nunca en logs, auditoría ni respuestas tras la activación |
+| Recuperación de contraseña sin correo | Sin proveedor de email (decisión del equipo) | Enlace de un solo uso (30 min, solo hash) emitido por un admin con step-up y motivo, auditado |

@@ -53,6 +53,58 @@ class User(AbstractBaseUser):
         return self.display_name
 
 
+class UserMfa(models.Model):
+    """`lancex.user_mfa`: 2FA activo (sin fila = sin 2FA). PRIVADO: el secreto nunca sale de aquí."""
+
+    user = models.OneToOneField(User, primary_key=True, on_delete=models.DO_NOTHING, db_column="user_id")
+    secret = models.CharField(max_length=32)
+    last_step = models.BigIntegerField(null=True, blank=True)
+    enabled_at = models.DateTimeField(db_default=Now())
+
+    class Meta:
+        managed = False
+        db_table = "user_mfa"
+
+    def __str__(self) -> str:
+        return f"2FA de {self.user_id}"  # nunca el secreto
+
+
+class MfaRecoveryCode(models.Model):
+    """`lancex.mfa_recovery_code`: códigos de respaldo de un solo uso (solo SHA-256)."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user_id = models.UUIDField()
+    code_hash = models.CharField(max_length=64, unique=True)
+    used_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(db_default=Now())
+
+    class Meta:
+        managed = False
+        db_table = "mfa_recovery_code"
+
+    def __str__(self) -> str:
+        return f"Código de respaldo {self.pk}"  # nunca el hash
+
+
+class PasswordResetToken(models.Model):
+    """`lancex.password_reset_token`: enlace de un solo uso emitido por un admin (solo SHA-256)."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user_id = models.UUIDField()
+    token_hash = models.CharField(max_length=64, unique=True)
+    created_by_user_id = models.UUIDField()
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(db_default=Now())
+
+    class Meta:
+        managed = False
+        db_table = "password_reset_token"
+
+    def __str__(self) -> str:
+        return f"Restablecimiento {self.pk}"  # nunca el hash
+
+
 class UserSession(AbstractBaseSession):
     """`lancex.django_session` con `user_id` para revocar sesiones por usuario (ver sessions.py)."""
 

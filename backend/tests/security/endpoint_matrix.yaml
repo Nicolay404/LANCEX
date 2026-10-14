@@ -40,6 +40,41 @@ endpoints:
       POST: {visitor: 401, user: 204, buyer_member: 204, supplier_member: 204, moderator: 204, admin: 204}
     notes: "Step-up. Contraseña actual incorrecta -> 403 STEP_UP_FAILED."
 
+  - route: /api/v1/auth/login/mfa/
+    methods:
+      POST: {visitor: 200, user: 200, buyer_member: 200, supplier_member: 200, moderator: 200, admin: 200}
+    notes: "Público. Solo con un login pendiente en la sesión (si no, 401 MFA_SESSION_EXPIRED); código malo -> 401 INVALID_MFA_CODE; suma al bloqueo de la cuenta."
+
+  - route: /api/v1/auth/mfa/
+    methods:
+      GET: {visitor: 401, user: 200, buyer_member: 200, supplier_member: 200, moderator: 200, admin: 200}
+    notes: "Estado de MI 2FA. Nunca devuelve el secreto."
+
+  - route: /api/v1/auth/mfa/setup/
+    methods:
+      POST: {visitor: 401, user: 200, buyer_member: 200, supplier_member: 200, moderator: 200, admin: 200}
+    notes: "Step-up con contraseña. El secreto queda en la sesión hasta confirmarlo."
+
+  - route: /api/v1/auth/mfa/enable/
+    methods:
+      POST: {visitor: 401, user: 201, buyer_member: 201, supplier_member: 201, moderator: 201, admin: 201}
+    notes: "Con un código válido; devuelve los códigos de respaldo una sola vez."
+
+  - route: /api/v1/auth/mfa/disable/
+    methods:
+      POST: {visitor: 401, user: 204, buyer_member: 204, supplier_member: 204, moderator: 204, admin: 204}
+    notes: "Contraseña + código (app o respaldo)."
+
+  - route: /api/v1/auth/mfa/recovery-codes/
+    methods:
+      POST: {visitor: 401, user: 200, buyer_member: 200, supplier_member: 200, moderator: 200, admin: 200}
+    notes: "Contraseña + código; invalida los anteriores."
+
+  - route: /api/v1/auth/password-reset/
+    methods:
+      POST: {visitor: 204, user: 204, buyer_member: 204, supplier_member: 204, moderator: 204, admin: 204}
+    notes: "Público, con el token de un solo uso que emitió un admin; token inválido o vencido -> 400."
+
   - route: /api/v1/categories/
     methods:
       GET: {visitor: 200, user: 200, buyer_member: 200, supplier_member: 200, moderator: 200, admin: 200}
@@ -264,6 +299,16 @@ endpoints:
     methods:
       GET: {visitor: 401, user: 403, buyer_member: 403, supplier_member: 403, moderator: 403, admin: 200}
     notes: "?q=&role=&status="
+
+  - route: /api/v1/admin/users/{user_id}/password-reset/
+    methods:
+      POST: {visitor: 401, user: 403, buyer_member: 403, supplier_member: 403, moderator: 403, admin: 201}
+    notes: "Step-up + motivo; nunca sobre sí mismo. Devuelve el token una sola vez (no-store)."
+
+  - route: /api/v1/admin/users/{user_id}/mfa-reset/
+    methods:
+      POST: {visitor: 401, user: 403, buyer_member: 403, supplier_member: 403, moderator: 403, admin: 204}
+    notes: "Step-up + motivo; 409 MFA_NOT_ENABLED si no tiene 2FA."
 
   - route: /api/v1/admin/users/{user_id}/reactivate/
     methods:

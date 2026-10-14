@@ -111,3 +111,11 @@ Laptop de cada integrante                          Nube
 **Decisión.** `CONN_MAX_AGE` se lee de `DB_CONN_MAX_AGE`, por defecto `0` (cerrar al terminar la petición). Solo se sube con un servidor de hilos fijos.
 
 **Consecuencias.** (+) Cada backend ocupa solo las conexiones de las peticiones en curso. (−) Cada petición paga el establecimiento de la conexión, coste que con `runserver` ya se pagaba igual (hilo nuevo, conexión nueva). Los tres integrantes deben actualizar su rama: un backend con la configuración vieja sigue llenando el pool de todos.
+
+## Enmienda 3 (2026-10-14T16:31:18-05:00): dependencia `uqr` para el QR del doble factor
+
+**Necesidad.** Activar la verificación en dos pasos exige mostrar el secreto TOTP como QR. Generarlo con un servicio web enviaría el secreto a un tercero (prohibido); escribir un codificador QR propio es código extenso y propenso a errores.
+
+**Decisión.** `uqr@0.1.3` (fijada exacta) en el frontend: licencia MIT, **sin dependencias**, ~70 kB sin empaquetar, genera la matriz en el navegador; se dibuja como SVG en React sin `innerHTML` (`src/components/QrCode.tsx`). Solo la carga la página `/cuenta` (chunk propio).
+
+**Mantenimiento y compatibilidad.** ESM, sin APIs del DOM ni de Node; `npm audit` sin vulnerabilidades al instalarla. Si deja de mantenerse, el reemplazo es local a `QrCode.tsx`.

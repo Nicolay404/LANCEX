@@ -125,3 +125,7 @@ Línea base: 466 pruebas (core 86, accounts 33, auctions 211, catalog 23, db 32,
 Comandos y resultados reales: `ruff check .` sin errores; `ruff format --check .` sin cambios; `python manage.py check` sin errores; `LANCEX_REQUIRE_DB=1 python -m pytest` → **655 passed** (antes 466). Pendientes sin cambio: R1 (migración en Supabase), R3 (`pip-audit`), R4, R5, L5–L7.
 
 **Decisión (2026-10-13T05:23:50Z):** recuperación de contraseña y cambio de email pospuestos sin proveedor de correo (decisión de Nicolay). L5 queda en backlog hasta elegir proveedor mediante una ADR.
+
+## 9. Actualización (2026-10-14T16:19:17-05:00): recuperación de acceso y doble factor
+
+La recuperación de contraseña, pospuesta por falta de proveedor de correo, se resolvió **sin correo**: un admin emite un enlace de un solo uso (30 min) que entrega al usuario. Se añadió 2FA con TOTP y códigos de respaldo. Ver `CONTRATO-API-INICIAL.md` y `supabase/migrations/20261014120000_doble_factor_y_reset.sql`. El cambio de email sigue pospuesto.

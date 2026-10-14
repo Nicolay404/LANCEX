@@ -29,7 +29,50 @@ export async function fetchMe(signal?: AbortSignal): Promise<UserMe | null> {
   }
 }
 
-export const login = (input: LoginInput) => api.post<UserMe>('/auth/login/', input)
+/** Con 2FA el primer paso NO inicia sesión: responde `{mfa_required: true}`. */
+export interface MfaRequired {
+  mfa_required: true
+}
+
+export const isMfaRequired = (r: UserMe | MfaRequired): r is MfaRequired =>
+  'mfa_required' in r && r.mfa_required === true
+
+export const login = (input: LoginInput) => api.post<UserMe | MfaRequired>('/auth/login/', input)
+
+/** Segundo paso: código de 6 dígitos de la app o código de respaldo `XXXX-XXXX-XXXX-XXXX`. */
+export const loginMfa = (code: string) => api.post<UserMe>('/auth/login/mfa/', { code })
+
+/** Restablecimiento con el enlace de un solo uso que generó un admin (sin sesión). */
+export const confirmPasswordReset = (token: string, new_password: string) =>
+  api.post<void>('/auth/password-reset/', { token, new_password })
+
+// --- Doble factor de mi cuenta ---------------------------------------------------------
+
+export interface MfaStatus {
+  enabled: boolean
+  enabled_at: string | null
+  recovery_codes_remaining: number
+}
+
+export interface MfaSetup {
+  /** Clave base32 para escribirla a mano en la app. Vive solo en memoria, nunca en storage. */
+  secret: string
+  otpauth_uri: string
+}
+
+export const fetchMfaStatus = (signal?: AbortSignal) => api.get<MfaStatus>('/auth/mfa/', { signal })
+
+export const startMfaSetup = (password: string) =>
+  api.post<MfaSetup>('/auth/mfa/setup/', { password })
+
+export const enableMfa = (code: string) =>
+  api.post<{ recovery_codes: string[] }>('/auth/mfa/enable/', { code })
+
+export const disableMfa = (password: string, code: string) =>
+  api.post<void>('/auth/mfa/disable/', { password, code })
+
+export const regenerateRecoveryCodes = (password: string, code: string) =>
+  api.post<{ recovery_codes: string[] }>('/auth/mfa/recovery-codes/', { password, code })
 
 export const register = (input: RegisterInput) => api.post<UserMe>('/auth/register/', input)
 

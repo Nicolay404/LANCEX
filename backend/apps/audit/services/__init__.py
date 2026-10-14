@@ -54,6 +54,13 @@ ACTIONS = frozenset(
         "category_changed",
         "security_password_changed",
         "security_sessions_revoked",
+        "security_mfa_enabled",
+        "security_mfa_disabled",
+        "security_mfa_recovery_codes_regenerated",
+        "security_mfa_recovery_code_used",
+        "security_mfa_reset_by_admin",
+        "security_password_reset_issued",
+        "security_password_reset_completed",
         "user_profile_updated",
         "admin_action",
     }

@@ -30,6 +30,34 @@ class PasswordChangeInput(StrictInputMixin, serializers.Serializer):
     new_password = serializers.CharField(max_length=128, trim_whitespace=False, write_only=True)
 
 
+# --- Doble factor y recuperación de acceso -----------------------------------------------
+
+
+class MfaPasswordInput(StrictInputMixin, serializers.Serializer):
+    password = serializers.CharField(max_length=128, trim_whitespace=False, write_only=True)
+
+
+class MfaCodeInput(StrictInputMixin, serializers.Serializer):
+    """Código de 6 dígitos de la app o, donde se admite, un código de respaldo XXXX-XXXX-XXXX-XXXX."""
+
+    code = serializers.CharField(max_length=32, write_only=True)
+
+
+class MfaStepUpInput(StrictInputMixin, serializers.Serializer):
+    password = serializers.CharField(max_length=128, trim_whitespace=False, write_only=True)
+    code = serializers.CharField(max_length=32, write_only=True)
+
+
+class PasswordResetConfirmInput(StrictInputMixin, serializers.Serializer):
+    token = serializers.CharField(max_length=128, write_only=True)
+    new_password = serializers.CharField(max_length=128, trim_whitespace=False, write_only=True)
+
+
+class AdminRecoveryInput(StrictInputMixin, serializers.Serializer):
+    reason = serializers.CharField(min_length=3, max_length=300)
+    password = serializers.CharField(max_length=128, trim_whitespace=False, write_only=True)
+
+
 # --- Salida (UserMe: única fuente para construir la interfaz, ADR-0006) -----------------
 
 

@@ -105,6 +105,13 @@ export const ACTIVITY_LABEL: Record<string, string> = {
   proxy_limit_raised: 'Subiste tu máximo automático',
   security_password_changed: 'Cambiaste tu contraseña',
   security_sessions_revoked: 'Cerraste las demás sesiones',
+  security_mfa_enabled: 'Activaste la verificación en dos pasos',
+  security_mfa_disabled: 'Desactivaste la verificación en dos pasos',
+  security_mfa_recovery_codes_regenerated: 'Generaste nuevos códigos de respaldo',
+  security_mfa_recovery_code_used: 'Entraste con un código de respaldo',
+  security_mfa_reset_by_admin: 'Quitaste la verificación en dos pasos de un usuario',
+  security_password_reset_issued: 'Generaste un enlace de restablecimiento',
+  security_password_reset_completed: 'Restableciste tu contraseña',
   user_profile_updated: 'Actualizaste tu perfil',
   user_registered: 'Creaste tu cuenta',
 }

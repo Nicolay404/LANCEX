@@ -306,3 +306,25 @@
 - Pruebas ejecutadas y resultado real: `ruff check` limpio; `LANCEX_REQUIRE_DB=1 pytest` **661 passed**. No verificado aún contra Supabase con el servidor reiniciado (lo valida el humano).
 - Riesgos/bloqueos: los backends de los otros integrantes siguen con la configuración vieja hasta actualizar.
 - Handoff/siguiente paso: commit/push con autorización; todos actualizan y reinician.
+
+## 2026-10-14T16:19:17-05:00: CIERRE: doble factor (TOTP) y restablecimiento de contraseña por admin
+- Humano responsable: Nicolay.
+- Herramienta/modelo IA: Claude (claude-opus-5-5).
+- Rama y commit: `feat/architect/cuenta-y-actividad` @ `7c97998`; cambios **sin commit** (el humano pidió no subir aún).
+- Objetivo: implementar en el backend 2FA y la recuperación de contraseña sin proveedor de correo (opción elegida por el humano: "2FA + reset por admin").
+- Archivos/documentos modificados: `supabase/migrations/20261014120000_doble_factor_y_reset.sql` (nuevo), `apps/accounts/models.py` (`UserMfa`, `MfaRecoveryCode`, `PasswordResetToken`, `managed=False`), `apps/accounts/services/totp.py`, `mfa.py`, `recovery.py` (nuevos), `apps/accounts/services/__init__.py` (login en dos pasos), `apps/accounts/api/{serializers,views,urls}.py`, `apps/audit/services` (7 acciones), `config/settings/base.py` (throttles `mfa`, `password_reset`), `tests/security/endpoint_matrix.yaml` (9 rutas), `tests/accounts/test_mfa_and_recovery.py`; CONTRATO, MODELO-DE-DATOS, REGLAS §12, SEGURIDAD §7, MATRIZ, AUDITORIA §9, handoffs Frontend y BD, estado compartido.
+- Decisiones/supuestos: TOTP implementado con la biblioteca estándar (sin dependencias nuevas), verificado con los vectores del RFC 6238; tablas separadas de `app_user` para que el código no rompa el resto de la app antes de la migración y para no cargar el secreto en cada petición; secreto TOTP en claro (riesgo aceptado y declarado); códigos de respaldo de 80 bits y tokens de 256 bits guardados como SHA-256; fallos de 2FA suman al bloqueo de cuenta; el restablecimiento no salta el 2FA; admin con step-up, motivo y nunca sobre sí mismo.
+- Pruebas ejecutadas y resultado real: migración aplicada sin errores en `lancex_test` (recreada) y `lancex_local` (solo local); `ruff check` y `ruff format --check` limpios; `manage.py check` sin errores; `LANCEX_REQUIRE_DB=1 pytest` **699 passed** (21 pruebas nuevas + barrido por rol sobre las rutas nuevas). No aplicado en Supabase (lo hace BD).
+- Riesgos/bloqueos: hasta que BD aplique la migración, los 9 endpoints nuevos y el login de usuarios con 2FA (no existen aún) fallan en Supabase; el resto no cambia.
+- Handoff/siguiente paso: autorización humana para commit/push; BD aplica la migración; Frontend implementa los flujos.
+
+## 2026-10-14T16:31:18-05:00: CIERRE: frontend de doble factor y restablecimiento (a pedido del humano)
+- Humano responsable: Nicolay.
+- Herramienta/modelo IA: Claude (claude-opus-5-5).
+- Rama y commit: `feat/architect/cuenta-y-actividad` @ `7c97998`; cambios **sin commit** (el humano pidió no subir aún).
+- Objetivo: completar las pantallas de las integraciones nuevas (2FA y restablecimiento). Área de Frontend: se hizo por pedido explícito del humano y se deja handoff para su revisión.
+- Archivos/documentos modificados: ver handoff a Frontend; ADR-0004 Enmienda 3 (`uqr`).
+- Decisiones/supuestos: QR generado en el navegador (nunca un servicio externo); secreto y códigos solo en estado de componente (ni storage ni URL ni caché de consultas); el token de restablecimiento se quita de la URL al abrir; los códigos `INVALID_MFA_CODE`/`MFA_*` se registran en el cliente para que un 401 de 2FA no se interprete como sesión expirada; `package-lock.json` incluye además diferencias de formato de la versión local de npm (`"peer": true`).
+- Pruebas ejecutadas y resultado real: `npx tsc -b --noEmit` OK; `npx eslint .` OK; Prettier OK en los archivos tocados (el resto del repo marca CRLF en Windows, sin relación); `npx vitest run` **191 passed** (8 nuevas); `npm run build` OK; `npm install` 0 vulnerabilidades. Backend sin cambios en este bloque (699 passed). No probado aún con un teléfono real.
+- Riesgos/bloqueos: revisión de Frontend pendiente.
+- Handoff/siguiente paso: humano prueba con Google Authenticator; autorización para commit/push.

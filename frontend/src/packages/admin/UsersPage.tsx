@@ -10,7 +10,14 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Textarea } from '@/components/ui/textarea'
-import { adminKeys, changeRole, fetchAdminUsers, reactivateUser } from '@/features/admin/api'
+import {
+  adminKeys,
+  changeRole,
+  fetchAdminUsers,
+  issuePasswordReset,
+  reactivateUser,
+  resetUserMfa,
+} from '@/features/admin/api'
 import { PLATFORM_ROLE_LABEL } from '@/features/auth/capabilities'
 import { ME_QUERY_KEY, useMe } from '@/features/auth/session'
 import { ACCOUNT_STATUS_LABEL, type StaffUserRow } from '@/features/moderation/types'
@@ -18,7 +25,10 @@ import { formatDateTime } from '@/lib/dates'
 
 import { Pager } from '../moderation/shared'
 
-/** `/admin/usuarios` (capacidad `admin.manage_users`): buscar, reactivar y cambiar rol. */
+/**
+ * `/admin/usuarios` (capacidad `admin.manage_users`): buscar, reactivar, cambiar rol y recuperar
+ * el acceso (enlace de restablecimiento de contraseña y quitar la verificación en dos pasos).
+ */
 export function UsersPage() {
   const [params, setParams] = useSearchParams()
   const filters = {
@@ -111,7 +121,7 @@ export function UsersPage() {
 
 function UserRow({ u }: { u: StaffUserRow }) {
   const me = useMe()
-  const [mode, setMode] = useState<'idle' | 'reactivate' | 'role'>('idle')
+  const [mode, setMode] = useState<'idle' | 'reactivate' | 'role' | 'reset' | 'mfa'>('idle')
   return (
     <li className="space-y-2 rounded-xl border p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -144,9 +154,17 @@ function UserRow({ u }: { u: StaffUserRow }) {
             </Button>
           )}
           {u.id !== me?.id && mode === 'idle' && (
-            <Button size="sm" variant="outline" onClick={() => setMode('role')}>
-              Cambiar rol
-            </Button>
+            <>
+              <Button size="sm" variant="outline" onClick={() => setMode('role')}>
+                Cambiar rol
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setMode('reset')}>
+                Restablecer contraseña
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setMode('mfa')}>
+                Quitar verificación en dos pasos
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -155,7 +173,121 @@ function UserRow({ u }: { u: StaffUserRow }) {
       )}
       {mode === 'reactivate' && <ReactivateForm u={u} onDone={() => setMode('idle')} />}
       {mode === 'role' && <RoleForm u={u} onDone={() => setMode('idle')} />}
+      {(mode === 'reset' || mode === 'mfa') && (
+        <AccessRecoveryForm u={u} action={mode} onDone={() => setMode('idle')} />
+      )}
     </li>
+  )
+}
+
+/**
+ * Recuperar el acceso de un usuario sin correo: enlace de un solo uso (30 min) o quitar su 2FA.
+ * Motivo + contraseña del admin (step-up). El enlace se muestra una vez y no se guarda.
+ */
+function AccessRecoveryForm({
+  u,
+  action,
+  onDone,
+}: {
+  u: StaffUserRow
+  action: 'reset' | 'mfa'
+  onDone: () => void
+}) {
+  const [reason, setReason] = useState('')
+  const [password, setPassword] = useState('')
+  const [copied, setCopied] = useState(false)
+  const mutation = useMutation({
+    mutationFn: async () => {
+      if (action === 'reset') return issuePasswordReset(u.id, reason.trim(), password)
+      await resetUserMfa(u.id, reason.trim(), password)
+      return null
+    },
+    onSettled: () => setPassword(''),
+  })
+  const link = mutation.data ? `${window.location.origin}${mutation.data.reset_path}` : null
+  const ready = reason.trim().length >= 3 && password
+  const title =
+    action === 'reset'
+      ? 'Enlace para restablecer la contraseña'
+      : 'Quitar verificación en dos pasos'
+
+  return (
+    <div className="max-w-xl space-y-2 border-t pt-2">
+      <p className="text-sm font-medium">{title}</p>
+      {mutation.isSuccess ? (
+        link ? (
+          <div className="space-y-2">
+            <Alert variant="success">
+              Entrega este enlace a {u.display_name} por un canal privado. Sirve una sola vez y
+              vence {formatDateTime(mutation.data!.expires_at)}. No se volverá a mostrar.
+            </Alert>
+            <Input readOnly aria-label="Enlace de restablecimiento" value={link} />
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() =>
+                void navigator.clipboard?.writeText(link).then(
+                  () => setCopied(true),
+                  () => setCopied(false),
+                )
+              }
+            >
+              {copied ? 'Copiado' : 'Copiar enlace'}
+            </Button>
+          </div>
+        ) : (
+          <Alert variant="success">
+            Se quitó la verificación en dos pasos de {u.display_name} y se cerraron sus sesiones.
+            Podrá ingresar solo con su contraseña y volver a activarla.
+          </Alert>
+        )
+      ) : (
+        <>
+          {action === 'mfa' && (
+            <p className="text-xs text-muted-foreground">
+              Úsalo solo si perdió su teléfono y sus códigos de respaldo, tras confirmar su
+              identidad.
+            </p>
+          )}
+          <Label htmlFor={`rec-reason-${action}-${u.id}`}>Motivo</Label>
+          <Textarea
+            id={`rec-reason-${action}-${u.id}`}
+            rows={2}
+            maxLength={300}
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+          />
+          <Label htmlFor={`rec-pw-${action}-${u.id}`}>Tu contraseña</Label>
+          <Input
+            id={`rec-pw-${action}-${u.id}`}
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          {mutation.isError && <ErrorAlert error={mutation.error} title="No se pudo completar" />}
+        </>
+      )}
+      <div className="flex gap-2">
+        {!mutation.isSuccess && (
+          <Button
+            size="sm"
+            variant={action === 'mfa' ? 'destructive' : 'default'}
+            disabled={!ready || mutation.isPending}
+            onClick={() => mutation.mutate()}
+          >
+            {mutation.isPending
+              ? 'Procesando…'
+              : action === 'reset'
+                ? 'Generar enlace'
+                : 'Quitar verificación'}
+          </Button>
+        )}
+        <Button size="sm" variant="outline" onClick={onDone}>
+          {mutation.isSuccess ? 'Cerrar' : 'Volver'}
+        </Button>
+      </div>
+    </div>
   )
 }
 

@@ -52,6 +52,13 @@ export const API_ERROR_CODES = [
   'OPEN_ACTIVITY',
   'SLUG_ALREADY_EXISTS',
   'STORAGE_UNAVAILABLE',
+  // Doble factor (2026-10-14). Deben estar aquí: un 401 desconocido se trataría como
+  // AUTH_REQUIRED (sesión expirada) y sacaría al usuario en vez de decirle "código incorrecto".
+  'INVALID_MFA_CODE',
+  'MFA_SESSION_EXPIRED',
+  'MFA_ALREADY_ENABLED',
+  'MFA_NOT_ENABLED',
+  'MFA_SETUP_REQUIRED',
 ] as const
 
 /** Códigos que genera el propio cliente cuando no hay respuesta válida del servidor. */
