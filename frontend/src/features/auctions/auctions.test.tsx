@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it } from 'vitest'
 
@@ -128,14 +128,64 @@ describe('catálogo (/)', () => {
     })
     renderApp('/')
 
-    const laptop = (await screen.findByText('[DEMO] Laptop ThinkPad T14')).closest('a')!
+    // La portada repite subastas en "destacadas/en vivo"; se revisa el catálogo completo.
+    const catalog = await screen.findByRole('region', { name: /^Subastas/ })
+    const laptop = (await within(catalog).findByText('[DEMO] Laptop ThinkPad T14')).closest('a')!
     expect(laptop).toHaveAttribute('href', `/subastas/${ID}`)
     expect(within(laptop).getByText('$310,00', { exact: false })).toBeInTheDocument()
     expect(within(laptop).getByText(/Termina en/)).toBeInTheDocument()
 
-    const card = screen.getByText('Cuadro al óleo').closest('a')!
+    const card = within(catalog).getByText('Cuadro al óleo').closest('a')!
     expect(within(card).getByText('3 ofertas')).toBeInTheDocument()
     expect(within(card).queryByText(/\$/)).not.toBeInTheDocument()
+  })
+
+  it('portada: destacadas y "en vivo" piden solo subastas activas; con filtros no se muestran', async () => {
+    const { calls } = fakeServer({
+      ...anon,
+      'GET /auctions/': () =>
+        json(200, { count: 1, next: null, previous: null, results: [SUMMARY] }),
+    })
+    renderApp('/')
+    expect(await screen.findByRole('heading', { name: 'Subastas destacadas' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Cómo funciona' })).toBeInTheDocument()
+    expect(calls.some((c) => c.path === '/auctions/' && c.query.get('status') === 'active')).toBe(
+      true,
+    )
+    cleanup()
+
+    renderApp('/?mechanism=sealed')
+    await screen.findByRole('region', { name: /^Subastas/ })
+    expect(screen.queryByRole('heading', { name: 'Subastas destacadas' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Cómo funciona' })).not.toBeInTheDocument()
+  })
+
+  it('con sesión: la portada saluda y muestra el resumen propio en lugar del héroe', async () => {
+    fakeServer({
+      ...asUser,
+      'GET /me/summary/': () =>
+        json(200, {
+          server_time: '2026-10-13T02:06:12Z',
+          participations: { leading: 3, outbid: 1, sealed_offers: 0, won: 0 },
+          my_auctions: { draft: 0, scheduled_or_active: 2, sold: 0, unsold: 0 },
+          unread_notifications: 4,
+          operations: {
+            notice: 'Informativo',
+            bought_total: '0.00',
+            sold_total: '0.00',
+            settled_as_buyer: '0.00',
+            settled_as_seller: '0.00',
+            pending_settlements: 0,
+          },
+        }),
+    })
+    renderApp('/')
+    expect(await screen.findByRole('heading', { name: /Ana\./ })).toBeInTheDocument()
+    expect(screen.queryByText(/Descubre y puja/)).not.toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: /Vas ganando\s*3/ })).toHaveAttribute(
+      'href',
+      '/mis-pujas',
+    )
   })
 
   it('los filtros viajan en la URL y en la consulta al backend', async () => {

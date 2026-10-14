@@ -131,7 +131,7 @@ function NotificationItem({ n, onRead }: { n: AppNotification; onRead: () => voi
         aria-hidden="true"
         className={cn(
           'mt-1.5 size-2 shrink-0 rounded-full',
-          unread ? 'bg-sky-600' : 'bg-transparent',
+          unread ? 'bg-primary' : 'bg-transparent',
         )}
       />
       <div className="min-w-0 flex-1 space-y-1">

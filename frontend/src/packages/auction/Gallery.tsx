@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
 import { artFor } from '@/features/auctions/auctionArt'
+import { photoForCategory } from '@/features/auctions/categoryPhotos'
 import type { AuctionDetail } from '@/features/auctions/types'
 import { cn } from '@/lib/utils'
 
@@ -11,27 +12,28 @@ export function Gallery({ a }: { a: AuctionDetail }) {
   const title = a.title ?? 'la subasta'
 
   if (images.length === 0) {
+    // Sin fotos propias: foto ilustrativa de la categoría, rotulada como tal.
     const art = artFor(a)
     return (
-      <div
-        aria-hidden
+      <figure
         className={cn(
-          'flex aspect-[16/9] items-center justify-center rounded-3xl bg-gradient-to-br shadow-sm',
+          'relative aspect-[16/9] overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br',
           art.bg,
         )}
       >
-        <svg
-          viewBox="0 0 24 24"
-          className="size-28 text-white/40"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d={art.icon} />
-        </svg>
-      </div>
+        <img
+          src={photoForCategory(
+            a.category?.name ?? (a.mechanism === 'reverse' ? 'insumos' : null),
+            1200,
+          )}
+          alt=""
+          referrerPolicy="no-referrer"
+          className="size-full object-cover"
+        />
+        <figcaption className="absolute bottom-3 left-3 rounded-md bg-black/60 px-2.5 py-1 text-xs text-white/85 backdrop-blur">
+          Imagen ilustrativa de la categoría
+        </figcaption>
+      </figure>
     )
   }
 

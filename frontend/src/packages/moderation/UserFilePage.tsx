@@ -63,7 +63,7 @@ export function UserFilePage() {
 
       <dl className="grid max-w-xl grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm">
         <dt className="text-muted-foreground">Estado</dt>
-        <dd className={u.status === 'suspended' ? 'font-medium text-red-700' : undefined}>
+        <dd className={u.status === 'suspended' ? 'font-medium text-red-300' : undefined}>
           {ACCOUNT_STATUS_LABEL[u.status] ?? u.status}
           {u.status_reason && ` · ${u.status_reason}`}
         </dd>

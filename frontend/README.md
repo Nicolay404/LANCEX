@@ -135,9 +135,10 @@ E2E_DEMO_PASSWORD=<la misma de LANCEX_DEMO_PASSWORD> npm run e2e
 
 ## Diseño visual
 
-- Tokens en `src/index.css`: verde (`brand`, `brand-deep`) para superficies de marca, naranja (`primary`) para acciones, `live` para "Activa". El modo oscuro es automático (`prefers-color-scheme`).
-- Tipografías autoalojadas con `@fontsource`: Plus Jakarta Sans (texto) y DM Serif Display itálica para la palabra destacada (`.accent-word`).
-- Piezas: `Logo`, `Hero` (portada del catálogo), `AuctionCard` (lote, estado y cuenta regresiva), `CountdownChips` (días/horas/min/seg con la hora del servidor) y `Gallery` en el detalle.
+- Tema único oscuro (`src/index.css`): fondo #0D0D0D, tarjetas #1A1A1A/#1E1E1E, azul eléctrico #0052FF para botones y `text-link` (#6B97FF) para texto azul (AA sobre negro).
+- Tipografía autoalojada con `@fontsource`: Plus Jakarta Sans. `.accent-word` pinta una palabra con degradado azul y `.grid-surface` dibuja la retícula del héroe y los banners.
+- Portada (`/` sin filtros): `Hero`, `HomeShowcase` (destacadas, en vivo, en vivo por categoría y cómo funciona) y luego el catálogo completo.
+- Piezas: `Logo`, `AuctionCard` (estado, reloj `TimerPill`, lote y precio), `CountdownChips` y `Gallery` en el detalle. Todas las cuentas regresivas usan la hora del servidor.
 
 ## Calidad
 
