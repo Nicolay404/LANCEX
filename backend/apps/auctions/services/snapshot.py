@@ -37,6 +37,8 @@ def _quantity(a: Auction):
     """Cantidad de la necesidad B2B (la inversa compite por el total sobre esa cantidad)."""
     if a.mechanism != "reverse" or a.procurement_request_id is None:
         return None
+    if Auction.procurement_request.is_cached(a):  # ya vino con select_related: sin consulta extra
+        return a.procurement_request.quantity
     from apps.catalog.models import ProcurementRequest
 
     return ProcurementRequest.objects.filter(pk=a.procurement_request_id).values_list("quantity", flat=True).first()

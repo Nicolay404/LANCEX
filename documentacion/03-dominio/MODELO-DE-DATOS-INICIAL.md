@@ -65,7 +65,7 @@ Para poder revocar todas las sesiones de un usuario (suspensión, cambio de rol 
 
 ### `django_cache`
 
-Tabla de `DatabaseCache` de Django (estructura de `createcachetable`: `cache_key varchar(255) PK`, `value text`, `expires timestamptz` con índice), creada por SQL. La usan el throttling y el bloqueo de login para que los límites se compartan entre los tres backends.
+Tabla de `DatabaseCache` de Django (estructura de `createcachetable`: `cache_key varchar(255) PK`, `value text`, `expires timestamptz` con índice), creada por SQL. La usan el bloqueo de login y los límites de login, registro y denuncias para que se compartan entre los tres backends (los límites generales `anon`/`user`/`bids` van en memoria: ADR-0004, Enmienda 1).
 
 ### `organization`
 

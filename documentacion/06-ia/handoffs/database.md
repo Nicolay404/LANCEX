@@ -11,6 +11,24 @@
 
 ## Handoffs activos
 
+- Fecha/hora: 2026-10-13T19:43:43-05:00
+- Issue/PR: `EMAXCONNSESSION` (pool de Supabase agotado) — rama `feat/architect/cuenta-y-actividad`, sin commit aún
+- Para rol: Frontend y Base de datos (todos los que corren el backend contra Supabase)
+- Estado: requiere acción tras el merge
+- Contexto: el backend dejaba conexiones abiertas 60 s por cada hilo de `runserver` (`CONN_MAX_AGE = 60`) y llenaba las 15 plazas del pooler en modo sesión, compartidas por los tres. Síntoma: 500 intermitentes con `EMAXCONNSESSION max clients reached`. Corregido: `CONN_MAX_AGE` por defecto 0 (`DB_CONN_MAX_AGE`), ADR-0004 Enmienda 2.
+- Archivos, tablas o endpoints afectados: `backend/config/settings/base.py`, `backend/.env.example`.
+- Acción requerida: tras el merge a `main`, `git pull` y **reiniciar** tu backend. Mientras alguien corra la versión vieja, sigue ocupando plazas de todos. No hace falta tocar el `.env`.
+- Cómo validar: navegar el catálogo un par de minutos con el backend contra Supabase sin 500.
+
+- Fecha/hora: 2026-10-13T19:09:56-05:00
+- Issue/PR: rendimiento contra Supabase (handoff de Frontend del 2026-10-13)
+- Para rol: Base de datos
+- Estado: requiere revisión (decisión de BD, no bloquea)
+- Contexto: el backend ya no consulta la base para el throttling general y agrupa consultas (ver handoff a Frontend). Lo que queda depende de la distancia: el proyecto está en `us-west-2` (~150–200 ms por consulta desde Ecuador).
+- Archivos, tablas o endpoints afectados: proyecto Supabase (región). Sin cambios de esquema.
+- Acción requerida: valorar (a) usar el Postgres local de Docker para el día a día (`scripts/db/apply_local.ps1` + `seed_demo`) y Supabase solo para integración/demo; (b) si se quiere menos latencia, crear el proyecto en São Paulo (`sa-east-1`): implica proyecto nuevo, volver a aplicar `supabase/migrations`, fijar la contraseña de `lancex_app`, crear el bucket `listing-images` y repartir las nuevas URL y claves. Decisión del equipo antes de la demo, no urgente.
+- Cómo validar: `Measure-Command { Invoke-WebRequest http://localhost:8000/api/v1/auctions/ -UseBasicParsing }` antes y después.
+
 - Fecha/hora: 2026-10-13T00:03:04-05:00 (2026-10-13T05:03:04Z)
 - Issue/PR: LX-18 (base implementada por ARQ en la auditoría)
 - Para rol: Base de datos / seguridad

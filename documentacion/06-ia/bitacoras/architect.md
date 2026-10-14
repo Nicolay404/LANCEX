@@ -284,3 +284,25 @@
 ## 2026-10-13T00:23:50-05:00 (2026-10-13T05:23:50Z): DECISIÓN: recuperación de contraseña sin proveedor
 - Humano responsable: Nicolay.
 - Decisión: posponer la recuperación de contraseña y el cambio de email; no se integra proveedor de correo por ahora (riesgo aceptado, SEGURIDAD §7). El humano autorizó el commit de la auditoría (no se pidió push).
+
+## 2026-10-13T19:09:56-05:00: CIERRE: rendimiento contra Supabase, LX-53 y job E2E (handoffs de Frontend)
+- Humano responsable: Nicolay.
+- Herramienta/modelo IA: Claude (claude-opus-5-5).
+- Rama y commit: `feat/architect/cuenta-y-actividad` @ `22c3894` (actualizada por fast-forward con `main`, PR #7 de Frontend); cambios **sin commit**.
+- Objetivo: atender los tres handoffs de Frontend en `handoffs/backend.md`.
+- Archivos/documentos modificados: `apps/core/throttling.py` (nuevo), `config/settings/base.py` y `test.py` (caché `throttle`), `apps/auctions/api/views.py` (usa los throttles nuevos), `apps/auctions/services/my_activity.py` (agregación condicional y subconsultas), `apps/auctions/services/snapshot.py` (cantidad de la necesidad sin consulta extra), `apps/auctions/services/queries.py` (`q` por necesidad), `apps/catalog/services/procurement.py` y `apps/auctions/api/me_views.py` (estado efectivo); pruebas nuevas `tests/core/test_query_budget.py` y `tests/auctions/test_lx53_reverse_visibility.py`; `.github/workflows/ci.yml` (job `e2e`); ADR-0004 (Enmienda 1), SEGURIDAD §8, MODELO-DE-DATOS (`django_cache`), CONTRATO, handoffs Frontend y BD, estado compartido.
+- Decisiones/supuestos: `anon`/`user`/`bids` cuentan por proceso (aceptado); bloqueo de login y `login`/`register`/`reports` siguen compartidos en base; E2E solo en push a `main` por su duración (~6 min).
+- Pruebas ejecutadas y resultado real: medición base con `CaptureQueriesContext` (coincide con la de Frontend: `/categories/` 13, `/me/summary/` 30); tras los cambios `/categories/` 1, `/auctions/` 3, `/me/summary/` 11. Las 3 pruebas de LX-53 **fallaron con el código anterior** (`git stash`) y pasan después. `ruff check` y `ruff format --check` limpios; `manage.py check` sin errores; `LANCEX_REQUIRE_DB=1 pytest` **661 passed**. YAML de CI validado con `yaml.safe_load`; el job `e2e` **no se ha ejecutado** en GitHub. **No medido contra Supabase**: la red bloqueó el puerto 5432 (timeout).
+- Riesgos/bloqueos: confirmar en GitHub el job `e2e`; medir tiempos reales contra Supabase desde una red que permita 5432.
+- Handoff/siguiente paso: autorización humana para commit/push; Frontend valida tiempos; BD decide región/Docker.
+
+## 2026-10-13T19:43:43-05:00: CIERRE: EMAXCONNSESSION contra Supabase
+- Humano responsable: Nicolay.
+- Herramienta/modelo IA: Claude (claude-opus-5-5).
+- Rama y commit: `feat/architect/cuenta-y-actividad` @ `22c3894`; cambios **sin commit**.
+- Objetivo: corregir 500 intermitentes `EMAXCONNSESSION max clients reached ... pool_size: 15` vistos por el humano al usar la app contra Supabase.
+- Archivos/documentos modificados: `backend/config/settings/base.py` (`CONN_MAX_AGE` desde `DB_CONN_MAX_AGE`, por defecto 0), `backend/.env.example`, ADR-0004 (Enmienda 2), handoffs Frontend y BD, estado compartido.
+- Decisiones/supuestos: con `runserver` (hilo por petición) la conexión persistente no se reutiliza y retiene plazas del pooler; 0 no empeora la latencia frente a lo que ya ocurría.
+- Pruebas ejecutadas y resultado real: `ruff check` limpio; `LANCEX_REQUIRE_DB=1 pytest` **661 passed**. No verificado aún contra Supabase con el servidor reiniciado (lo valida el humano).
+- Riesgos/bloqueos: los backends de los otros integrantes siguen con la configuración vieja hasta actualizar.
+- Handoff/siguiente paso: commit/push con autorización; todos actualizan y reinician.

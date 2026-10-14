@@ -68,7 +68,11 @@ def build_database(url: str, *, sslmode: str) -> dict:
         "sslmode": sslmode,
         "connect_timeout": 10,  # sin esto, un host caído bloquea minutos (TCP del SO)
     }
-    db["CONN_MAX_AGE"] = 60
+    # 0 = cerrar la conexión al terminar cada petición. `runserver` atiende cada petición en un hilo
+    # nuevo, así que una conexión persistente nunca se reutiliza y queda ocupando una plaza del pooler
+    # de Supabase (15 en modo sesión, compartidas por el equipo) -> EMAXCONNSESSION. Solo subirlo con
+    # un servidor de hilos fijos (gunicorn, etc.).
+    db["CONN_MAX_AGE"] = env.int("DB_CONN_MAX_AGE", default=0)
     db["CONN_HEALTH_CHECKS"] = True
     db["ATOMIC_REQUESTS"] = False  # las transacciones las abren los servicios.
     return db
@@ -107,12 +111,19 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = "same-origin"
 SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
 
-# --- Caché compartida entre los tres backends (throttling y bloqueo de login) ----------
+# --- Cachés -------------------------------------------------------------------------------
+# default: compartida entre los tres backends (bloqueo de login y límites de login/registro/
+#          denuncias). throttle: memoria del proceso para los límites que se evalúan en CADA
+#          petición (anon, user, pujas); en la base costaban ~6 consultas por límite (apps.core.throttling).
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.db.DatabaseCache",
         "LOCATION": "django_cache",  # tabla creada por SQL en el esquema lancex
-    }
+    },
+    "throttle": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "lancex-throttle",
+    },
 }
 
 # --- Internacionalización ---------------------------------------------------------------
@@ -132,8 +143,8 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "apps.core.exceptions.api_exception_handler",
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_THROTTLE_CLASSES": [
-        "rest_framework.throttling.AnonRateThrottle",
-        "rest_framework.throttling.UserRateThrottle",
+        "apps.core.throttling.AnonRateThrottle",
+        "apps.core.throttling.UserRateThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {
         "anon": "120/min",

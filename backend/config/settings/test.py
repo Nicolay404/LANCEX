@@ -26,5 +26,8 @@ DATABASES["default"]["OPTIONS"]["connect_timeout"] = 3  # Postgres local: si no 
 # Las pruebas nunca escriben en Firestore (ADR-0002); el handler se prueba con un doble.
 FIRESTORE_LOGS = {**FIRESTORE_LOGS, "ENABLED": False}
 
-CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
+CACHES = {
+    "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
+    "throttle": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "lancex-throttle"},
+}
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]  # solo velocidad en pruebas

@@ -90,7 +90,8 @@ def catalog(user, params, now: datetime) -> QuerySet:
             raise ValidationFailed(details={"fields": {"category": ["Debe ser un número."]}})
         qs = qs.filter(listing__category_id=int(category))
     if q := (params.get("q") or "").strip():
-        qs = qs.filter(listing__title__icontains=q[:100])
+        # LX-53: la inversa no tiene publicación; se busca por el título de su necesidad B2B.
+        qs = qs.filter(Q(listing__title__icontains=q[:100]) | Q(procurement_request__title__icontains=q[:100]))
     if params.get("ending_soon") == "true":
         qs = qs.filter(effective_status_filter(Status.ACTIVE, now), ends_at__lte=now + ENDING_SOON)
 

@@ -9,6 +9,24 @@
 
 ## Handoffs activos
 
+- Fecha/hora: 2026-10-13T19:43:43-05:00
+- Issue/PR: `EMAXCONNSESSION` (pool de Supabase agotado) — rama `feat/architect/cuenta-y-actividad`, sin commit aún
+- Para rol: Frontend y Base de datos (todos los que corren el backend contra Supabase)
+- Estado: requiere acción tras el merge
+- Contexto: el backend dejaba conexiones abiertas 60 s por cada hilo de `runserver` (`CONN_MAX_AGE = 60`) y llenaba las 15 plazas del pooler en modo sesión, compartidas por los tres. Síntoma: 500 intermitentes con `EMAXCONNSESSION max clients reached`. Corregido: `CONN_MAX_AGE` por defecto 0 (`DB_CONN_MAX_AGE`), ADR-0004 Enmienda 2.
+- Archivos, tablas o endpoints afectados: `backend/config/settings/base.py`, `backend/.env.example`.
+- Acción requerida: tras el merge a `main`, `git pull` y **reiniciar** tu backend. Mientras alguien corra la versión vieja, sigue ocupando plazas de todos. No hace falta tocar el `.env`.
+- Cómo validar: navegar el catálogo un par de minutos con el backend contra Supabase sin 500.
+
+- Fecha/hora: 2026-10-13T19:09:56-05:00
+- Issue/PR: respuesta a los handoffs de rendimiento, LX-74 y LX-53 (rama `feat/architect/cuenta-y-actividad`, sin commit aún)
+- Para rol: Frontend
+- Estado: listo para consumir (pendiente de commit/PR por autorización humana)
+- Contexto: (1) Rendimiento: throttling general en memoria y panel agrupado. Consultas por petición (Postgres local, sesión real): `/categories/` 13→1, `/auctions/` anónimo 15→3, detalle 17→5, `live/` 14→2, `/auth/me/` 12→6, `/me/summary/` 30→11, `/me/participations/` 17→9. No medido contra Supabase (la red del ARQ bloquea el puerto 5432 en ese momento): validar con tu `Measure-Command`. (2) LX-74: job `e2e` agregado a `ci.yml` con tu propuesta, solo en push a `main`, `timeout-minutes: 25` y espera activa a que el backend responda; aún no ejecutado en GitHub. (3) LX-53: `?q=` busca también en el título de la necesidad (la inversa aparece al buscar "Resmas"); `auction.status` en `/procurement-requests/{id}/`, `/organizations/{id}/procurement-requests/` y `/organizations/{id}/registrations/` ahora es el EFECTIVO.
+- Archivos, tablas o endpoints afectados: los endpoints citados; sin cambios de forma en las respuestas.
+- Acción requerida: puedes mostrar el `status` de esas vistas B2B. Si 6 min de E2E en cada push a `main` es mucho, avisa.
+- Cómo validar: `tests/core/test_query_budget.py`, `tests/auctions/test_lx53_reverse_visibility.py`; `GET /auctions/?q=Resmas` con el seed.
+
 - Fecha/hora: 2026-10-13T00:03:04-05:00 (2026-10-13T05:03:04Z)
 - Issue/PR: auditoría funcional del backend (sin commit aún; pendiente de autorización)
 - Para rol: Frontend

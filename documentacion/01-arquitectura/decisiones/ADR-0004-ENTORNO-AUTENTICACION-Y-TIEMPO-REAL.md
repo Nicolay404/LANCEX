@@ -28,7 +28,7 @@ Laptop de cada integrante                          Nube
 ### 2. Base de datos compartida
 
 - Un proyecto Supabase, esquema `lancex`, rol de aplicación `lancex_app` (ADR-0003).
-- Conexión por el **pooler en modo sesión** (IPv4). `CONN_MAX_AGE = 60` y `CONN_HEALTH_CHECKS = True`.
+- Conexión por el **pooler en modo sesión** (IPv4). `CONN_MAX_AGE` configurable (`DB_CONN_MAX_AGE`, por defecto 0; ver «Enmienda 2») y `CONN_HEALTH_CHECKS = True`.
 - **Reloj único:** toda decisión temporal usa `now()` o `clock_timestamp()` de PostgreSQL. Está prohibido comparar contra `timezone.now()` en reglas de negocio. El servicio `TimeSource` expone `db_now()`.
 - **Cierre concurrente:** cualquiera de los tres backends puede ejecutar el job de cierre; la operación es idempotente y usa `SELECT ... FOR UPDATE SKIP LOCKED` (ADR-0005).
 - **Datos de prueba manuales** en la base compartida se marcan con el prefijo `[DEV-<nombre>]` en títulos para no confundirse.
@@ -47,7 +47,7 @@ Laptop de cada integrante                          Nube
 - Hash de contraseñas: el predeterminado de Django (PBKDF2). Longitud mínima 10 y validadores de Django activos.
 - Roles de plataforma: `user`, `moderator` y `admin` (columna `platform_role`), más roles contextuales por organización. Autorización por capacidades calculadas en cada petición: ver ADR-0006 y `ROLES-Y-PERMISOS.md`.
 - Sesión con expiración absoluta de 12 h (`SESSION_COOKIE_AGE = 43200`), rotación de clave al iniciar sesión y revocación de todas las sesiones del usuario al suspenderlo, cambiarle el rol o cambiar su contraseña.
-- Caché `DatabaseCache` sobre `lancex.django_cache` (creada por SQL) para que el throttling y el bloqueo de login se compartan entre los tres backends.
+- Caché `DatabaseCache` sobre `lancex.django_cache` (creada por SQL) para que el throttling y el bloqueo de login se compartan entre los tres backends. *(Enmendado el 2026-10-13: ver «Enmienda 1».)*
 - **No se usa** `django.contrib.admin` ni `PermissionsMixin` (requerirían tablas de permisos). Para inspeccionar datos se usa el Table Editor de Supabase en modo lectura. Las acciones de administración de la plataforma son endpoints propios bajo `/api/v1/admin/`.
 - Rate limiting con throttling de DRF: login 5/min por IP y bloqueo de 15 min tras 5 fallos por cuenta, registro 3/min por IP, pujas 30/min por usuario (y 1/s por usuario y subasta), reportes 10/día, resto 120/min por usuario.
 
@@ -91,3 +91,23 @@ Laptop de cada integrante                          Nube
 - (+) Sesión + proxy elimina CORS, JWT y almacenamiento de tokens en el navegador.
 - (-) La demo depende de una laptop; se ensaya en la máquina que se usará.
 - (-) Latencia a Supabase en cada consulta (Ecuador → región del proyecto). Mitigación: consultas agregadas, `select_related`, índices y el endpoint `live/` liviano.
+
+## Enmienda 1 (2026-10-13T19:09:56-05:00): throttling general en memoria del proceso
+
+**Contexto.** Frontend midió 6.8 s para `GET /auctions/` contra Supabase. Con `DatabaseCache`, cada throttle de DRF hace ~6 consultas a `django_cache` (SELECT, COUNT, BEGIN, SELECT, UPDATE, COMMIT); `anon` + `user` en cada petición sumaban 12 de las 13 consultas de `/categories/`, a ~150–200 ms cada una.
+
+**Decisión.**
+- Los límites que se evalúan en **cada** petición (`anon`, `user`, `bids`) usan la caché `throttle` (`LocMemCache`, memoria del proceso) mediante `apps.core.throttling`.
+- Se mantienen en la caché compartida `default` (`DatabaseCache`): el **bloqueo de login** por cuenta (5 fallos / 15 min) y los límites de `login`, `register` y `reports`, que son poco frecuentes y deben valer en los tres backends.
+
+**Consecuencias.**
+- (+) `/categories/` pasa de 13 a 1 consulta; `/auctions/` anónimo de 15 a 3 (`tests/core/test_query_budget.py` fija los techos).
+- (−) `anon`, `user` y `bids` cuentan por backend (por laptop) y se reinician al reiniciar el servidor. Aceptado: siguen frenando ráfagas y abuso de un cliente; la defensa contra fuerza bruta (T11) no cambia.
+
+## Enmienda 2 (2026-10-13T19:43:43-05:00): `CONN_MAX_AGE = 0` con `runserver`
+
+**Contexto.** Con `CONN_MAX_AGE = 60`, el pooler de Supabase en modo sesión respondió `EMAXCONNSESSION: max clients reached ... pool_size: 15`. `runserver` crea un hilo por petición: cada hilo abre su propia conexión, nunca la reutiliza y la deja abierta hasta 60 s. Unas pocas peticiones seguidas (el frontend hace polling) por cada uno de los tres backends llenan las 15 plazas compartidas.
+
+**Decisión.** `CONN_MAX_AGE` se lee de `DB_CONN_MAX_AGE`, por defecto `0` (cerrar al terminar la petición). Solo se sube con un servidor de hilos fijos.
+
+**Consecuencias.** (+) Cada backend ocupa solo las conexiones de las peticiones en curso. (−) Cada petición paga el establecimiento de la conexión, coste que con `runserver` ya se pagaba igual (hilo nuevo, conexión nueva). Los tres integrantes deben actualizar su rama: un backend con la configuración vieja sigue llenando el pool de todos.

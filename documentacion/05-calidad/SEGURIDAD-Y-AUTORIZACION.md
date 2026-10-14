@@ -44,7 +44,7 @@ El atacante es un usuario registrado (o visitante) que **controla por completo s
 5. **Querysets limitados** con `visible_to(user)`; prohibido `Model.objects.all()` en vistas.
 6. **Serializadores:** salida con lista blanca por audiencia; entrada estricta que rechaza campos desconocidos.
 7. **Errores uniformes** sin detalles internos; 404 para no visible, 403 para no permitido.
-8. **Throttling** (ADR-0004) con caché `DatabaseCache` sobre la tabla `lancex.django_cache` (creada por SQL), compartida por los 3 backends.
+8. **Throttling** (ADR-0004, Enmienda 1): bloqueo de login y límites de `login`, `register` y `reports` en `DatabaseCache` (`lancex.django_cache`), compartidos por los 3 backends; `anon`, `user` y `bids` en memoria de cada proceso (`apps.core.throttling`) para no consultar la base en cada petición.
 9. **Sesión:** `SESSION_COOKIE_AGE = 43200` (12 h), `HttpOnly`, `SameSite=Lax`, rotación al iniciar sesión; funciones `revoke_all_sessions(user)` usadas en suspensión, cambio de rol y cambio de contraseña.
 10. **Acciones sensibles con confirmación de contraseña** (*step-up*): cambiar contraseña, transferir propiedad de organización, cambiar rol de plataforma.
 11. **Cabeceras:** `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: same-origin`, `Cross-Origin-Opener-Policy: same-origin`. CSP en el build de producción: `default-src 'self'; img-src 'self' https://<proyecto>.supabase.co; frame-ancestors 'none'; object-src 'none'`.

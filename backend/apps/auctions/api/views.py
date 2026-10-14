@@ -7,7 +7,6 @@ import uuid
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
 from rest_framework.response import Response
-from rest_framework.throttling import AnonRateThrottle, ScopedRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
 
 from apps.auctions.services import bidding, closing, lifecycle, participants, post_close, queries, sealed
@@ -16,6 +15,7 @@ from apps.core.capabilities import Cap, OrgCap
 from apps.core.errors import Conflict, ValidationFailed
 from apps.core.pagination import StandardPagination
 from apps.core.permissions import ByMethod, HasAnyOrgCapability, HasCapability, Public, get_capabilities
+from apps.core.throttling import AnonRateThrottle, BidRateThrottle, UserRateThrottle
 from apps.core.time import time_source
 from apps.notifications import services as notifications
 
@@ -34,17 +34,6 @@ from .serializers import (
     SettlementInput,
     validated,
 )
-
-
-class BidRateThrottle(ScopedRateThrottle):
-    """30 pujas/min por usuario (ADR-0004). Solo escrituras: el historial no se limita aquí."""
-
-    scope_attr = "bid_throttle_scope"
-
-    def allow_request(self, request, view):
-        if request.method not in ("POST", "PUT", "DELETE"):
-            return True
-        return super().allow_request(request, view)
 
 
 def _detail_response(request, auction, status_code=status.HTTP_200_OK) -> Response:

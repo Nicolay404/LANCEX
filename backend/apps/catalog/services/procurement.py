@@ -86,25 +86,34 @@ def list_for_organization(user, organization_id):
 
 
 def auction_info(need_ids) -> dict[str, dict]:
-    """Subasta asociada a cada necesidad y número de proveedores admitidos (dato público)."""
+    """Subasta asociada a cada necesidad y número de proveedores admitidos (dato público).
+
+    `status` es el estado EFECTIVO según la hora de PostgreSQL (LX-53): una inversa ya empezada
+    dice `active` aunque el job todavía no haya materializado el cambio.
+    """
     from django.db.models import Count, Q
 
     from apps.auctions.models import Auction
+    from apps.auctions.services.snapshot import evaluate
+    from apps.core.time import time_source
 
-    rows = (
+    auctions = list(
         Auction.objects.filter(procurement_request_id__in=list(need_ids))
+        .select_related("procurement_request")
         .annotate(admitted=Count("auctionparticipant", filter=Q(auctionparticipant__status="admitted")))
-        .values("id", "procurement_request_id", "status", "starts_at", "ends_at", "admitted")
     )
+    if not auctions:
+        return {}
+    now = time_source.db_now()
     return {
-        str(r["procurement_request_id"]): {
-            "id": str(r["id"]),
-            "status": r["status"],
-            "starts_at": r["starts_at"],
-            "ends_at": r["ends_at"],
-            "admitted_count": r["admitted"],
+        str(a.procurement_request_id): {
+            "id": str(a.pk),
+            "status": evaluate(a, now).status,
+            "starts_at": a.starts_at,
+            "ends_at": a.ends_at,
+            "admitted_count": a.admitted,
         }
-        for r in rows
+        for a in auctions
     }
 
 

@@ -6,6 +6,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.auctions.services import my_activity, participants
+from apps.auctions.services.snapshot import evaluate
 from apps.core.capabilities import Cap, OrgCap
 from apps.core.pagination import StandardPagination
 from apps.core.permissions import HasAnyOrgCapability, HasCapability
@@ -57,7 +58,7 @@ class OrganizationRegistrationsView(APIView):
                         "auction": {
                             "id": str(p.auction_id),
                             "title": p.auction.procurement_request.title if p.auction.procurement_request else None,
-                            "status": p.auction.status,
+                            "status": evaluate(p.auction, now).status,  # efectivo (LX-53)
                             "starts_at": p.auction.starts_at,
                             "ends_at": p.auction.ends_at,
                         },

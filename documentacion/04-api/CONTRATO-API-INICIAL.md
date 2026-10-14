@@ -135,14 +135,14 @@ Leyenda de acceso: **P** público, **A** usuario autenticado con rol `user`, **D
 | POST | `/listings/{id}/images/` | D | Confirmar `{storage_path, position}` |
 | DELETE | `/listings/{id}/images/{image_id}/` | D | Solo sin subasta publicada. Sin Storage → `503 STORAGE_UNAVAILABLE` y **no** se borra nada |
 | POST | `/procurement-requests/` | M (compradora verificada) | Crear necesidad B2B |
-| GET | `/procurement-requests/{id}/` | P | Detalle público + `auction{id, status, starts_at, ends_at, admitted_count}` (null si no tiene subasta) |
+| GET | `/procurement-requests/{id}/` | P | Detalle público + `auction{id, status, starts_at, ends_at, admitted_count}` (null si no tiene subasta; `status` efectivo) |
 | GET | `/organizations/{id}/procurement-requests/` | M | Necesidades de mi organización (paginado), cada una con su `auction` |
 
 ### Subastas
 
 | Método | Ruta | Acceso | Descripción |
 |---|---|---|---|
-| GET | `/auctions/` | P | Catálogo. Filtros: `status` (efectivo), `mechanism`, `category`, `q`, `ending_soon=true`, `mine=owner\|participating\|watching` (A; `participating` incluye ofertas selladas), `seller={user_id}` (perfil público, sin borradores), `organization={org_id}` (solo miembros: panel de la organización, incluye borradores). Orden: `ends_at`, `-created_at`, `current_price` |
+| GET | `/auctions/` | P | Catálogo. Filtros: `status` (efectivo), `mechanism`, `category`, `q` (título de la publicación o, en la inversa, de la necesidad), `ending_soon=true`, `mine=owner\|participating\|watching` (A; `participating` incluye ofertas selladas), `seller={user_id}` (perfil público, sin borradores), `organization={org_id}` (solo miembros: panel de la organización, incluye borradores). Orden: `ends_at`, `-created_at`, `current_price` |
 | POST | `/auctions/` | A / M | Crear en `draft` (ver payload) |
 | GET | `/auctions/{id}/` | P | Detalle según audiencia (matriz) |
 | PATCH | `/auctions/{id}/` | D | Solo en `draft`; en `scheduled` solo textos. En la **inversa** `title`/`description` → `400 VALIDATION_ERROR` (el texto es de la necesidad B2B) |
@@ -171,7 +171,7 @@ Leyenda de acceso: **P** público, **A** usuario autenticado con rol `user`, **D
 | GET | `/me/summary/` | sesión | `/panel`: `participations{leading, outbid, sealed_offers, won}`, `my_auctions{draft, scheduled_or_active, sold, unsold}`, `unread_notifications`, `operations{notice, bought_total, sold_total, settled_as_buyer, settled_as_seller, pending_settlements}` (informativo: LANCEX no procesa pagos ni guarda saldos) |
 | GET | `/me/participations/?tab=active\|won\|lost` | A | `/mis-pujas`: `auction_id, title, mechanism, closing_policy, status, ends_at, my_status (leading\|outbid\|offer_submitted\|offer_withdrawn\|pending_result\|won\|lost\|cancelled), current_price, my_last_bid, my_proxy_max, my_sealed_offer` (solo datos propios) |
 | GET | `/me/activity/` | sesión | Registro de mis acciones auditadas: `occurred_at, action, entity_type, auction_id, auction_title, details` (lista blanca por acción) |
-| GET | `/organizations/{id}/registrations/` | M | Inscripciones de mi organización proveedora con su subasta |
+| GET | `/organizations/{id}/registrations/` | M | Inscripciones de mi organización proveedora con su subasta (`auction.status` efectivo) |
 | GET | `/organizations/{id}/opportunities/` | M (proveedora) | Inversas en inscripción o activas, **sin** las de organizaciones donde tengo conflicto; `phase (registration\|bidding)`, `my_registration` |
 | POST | `/auctions/{id}/reverse-quote/` | M (proveedora) | `{unit_price, shipping_cost}` → `{total, maximum_allowed, within_maximum, formula}`; no crea oferta |
 

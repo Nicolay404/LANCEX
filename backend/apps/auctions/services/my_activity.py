@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from django.db.models import Q, Sum
+from django.db.models import Count, Q, Sum
 
 from apps.auctions.domain.state import Status
 from apps.auctions.models import Auction, Bid, ProxyBidLimit, SealedOffer
@@ -49,20 +49,21 @@ ACTIVITY_DATA_KEYS = {
 }
 
 
-def _my_auction_ids(user) -> set:
-    """Subastas donde participé: pujas, ofertas selladas u ofertas de mis organizaciones (inversa)."""
-    ids = set(Bid.objects.filter(bidder_user_id=user.pk).values_list("auction_id", flat=True))
-    ids |= set(SealedOffer.objects.filter(bidder_user_id=user.pk).values_list("auction_id", flat=True))
-    return ids
+def _my_auctions_filter(user) -> Q:
+    """Subastas donde participé: pujas (también las de mis organizaciones en la inversa) u ofertas
+    selladas. Subconsultas: un solo viaje a la base en vez de traer los ids primero."""
+    return Q(pk__in=Bid.objects.filter(bidder_user_id=user.pk).values("auction_id")) | Q(
+        pk__in=SealedOffer.objects.filter(bidder_user_id=user.pk).values("auction_id")
+    )
 
 
-def participations(user, tab: str) -> list[dict]:
+def participations(user, tab: str, *, now=None) -> list[dict]:
     if tab not in TABS:
         tab = "active"
-    now = time_source.db_now()
+    now = now or time_source.db_now()
     my_orgs = organizations.member_organization_ids(user)
     auctions = (
-        Auction.objects.filter(pk__in=_my_auction_ids(user))
+        Auction.objects.filter(_my_auctions_filter(user))
         .select_related("listing__category", "procurement_request")
         .order_by("ends_at")
     )
@@ -129,43 +130,52 @@ def participations(user, tab: str) -> list[dict]:
 def summary(user) -> dict:
     """`/panel`: resumen personal + resumen informativo de operaciones (no es un saldo)."""
     now = time_source.db_now()
-    active = participations(user, "active")
-    open_mine = Auction.objects.filter(
-        owner_user_id=user.pk, status__in=(Status.DRAFT, Status.SCHEDULED, Status.ACTIVE)
-    )
-    won = Auction.objects.filter(winner_user_id=user.pk, outcome="awarded")
-    sold = Auction.objects.filter(owner_user_id=user.pk, outcome="awarded")
-    pending_settlement = (
-        sold.filter(settlement_status="pending").count() + won.filter(settlement_status="pending").count()
-    )
+    active = participations(user, "active", now=now)
+    totals = _owner_and_buyer_totals(user)
     return {
         "server_time": now,
         "participations": {
             "leading": sum(1 for i in active if i["my_status"] == "leading"),
             "outbid": sum(1 for i in active if i["my_status"] == "outbid"),
             "sealed_offers": sum(1 for i in active if i["my_status"] == "offer_submitted"),
-            "won": won.count(),
+            "won": totals["won"],
         },
         "my_auctions": {
-            "draft": open_mine.filter(status=Status.DRAFT).count(),
-            "scheduled_or_active": open_mine.exclude(status=Status.DRAFT).count(),
-            "sold": sold.count(),
-            "unsold": Auction.objects.filter(owner_user_id=user.pk, outcome="unsold").count(),
+            "draft": totals["draft"],
+            "scheduled_or_active": totals["scheduled_or_active"],
+            "sold": totals["sold"],
+            "unsold": totals["unsold"],
         },
         "unread_notifications": Notification.objects.filter(user_id=user.pk, read_at__isnull=True).count(),
         "operations": {
             "notice": "Resumen informativo: LANCEX no procesa pagos ni guarda saldos.",
-            "bought_total": _str(won.aggregate(t=Sum("final_price"))["t"] or Decimal("0")),
-            "sold_total": _str(sold.aggregate(t=Sum("final_price"))["t"] or Decimal("0")),
-            "settled_as_buyer": _str(
-                won.filter(settlement_status="completed").aggregate(t=Sum("final_price"))["t"] or Decimal("0")
-            ),
-            "settled_as_seller": _str(
-                sold.filter(settlement_status="completed").aggregate(t=Sum("final_price"))["t"] or Decimal("0")
-            ),
-            "pending_settlements": pending_settlement,
+            "bought_total": _str(totals["bought_total"] or Decimal("0")),
+            "sold_total": _str(totals["sold_total"] or Decimal("0")),
+            "settled_as_buyer": _str(totals["settled_as_buyer"] or Decimal("0")),
+            "settled_as_seller": _str(totals["settled_as_seller"] or Decimal("0")),
+            "pending_settlements": totals["pending_settlements"],
         },
     }
+
+
+def _owner_and_buyer_totals(user) -> dict:
+    """Todos los contadores y totales del panel en UNA consulta (agregación condicional)."""
+    mine = Q(owner_user_id=user.pk)
+    won = Q(winner_user_id=user.pk, outcome="awarded")
+    sold = mine & Q(outcome="awarded")
+    completed = Q(settlement_status="completed")
+    return Auction.objects.filter(mine | Q(winner_user_id=user.pk)).aggregate(
+        draft=Count("pk", filter=mine & Q(status=Status.DRAFT)),
+        scheduled_or_active=Count("pk", filter=mine & Q(status__in=(Status.SCHEDULED, Status.ACTIVE))),
+        sold=Count("pk", filter=sold),
+        unsold=Count("pk", filter=mine & Q(outcome="unsold")),
+        won=Count("pk", filter=won),
+        pending_settlements=Count("pk", filter=(sold | won) & Q(settlement_status="pending")),
+        bought_total=Sum("final_price", filter=won),
+        sold_total=Sum("final_price", filter=sold),
+        settled_as_buyer=Sum("final_price", filter=won & completed),
+        settled_as_seller=Sum("final_price", filter=sold & completed),
+    )
 
 
 def activity(user):

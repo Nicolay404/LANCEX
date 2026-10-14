@@ -10,6 +10,15 @@
 
 ## Handoffs activos
 
+- Fecha/hora: 2026-10-13T19:09:56-05:00
+- Issue/PR: respuesta a los handoffs de Frontend del 2026-10-13 (rendimiento, LX-74, LX-53)
+- Para rol: Backend (ARQ) — CERRADO
+- Estado: resuelto en la rama `feat/architect/cuenta-y-actividad` (sin commit aún)
+- Contexto: los tres puntos están atendidos; detalle en `handoffs/frontend.md` y en la bitácora de arquitectura. La región de Supabase y el uso de Docker quedan para BD (`handoffs/database.md`).
+- Archivos, tablas o endpoints afectados: ver bitácora de arquitectura.
+- Acción requerida: ninguna para Backend.
+- Cómo validar: `tests/core/test_query_budget.py`, `tests/auctions/test_lx53_reverse_visibility.py`.
+
 - Fecha/hora: 2026-10-13T13:31:07-05:00
 - Issue/PR: rendimiento con Supabase (detectado por Frontend; rama `frontend-lancex`)
 - Para rol: Backend (ARQ) y BD
