@@ -1,30 +1,51 @@
 import { cn } from '@/lib/utils'
 
-/** Marca LANCEX: mazo de subasta propio + logotipo con la "X" en el color de acción. */
-export function Logo({ className, inverted = false }: { className?: string; inverted?: boolean }) {
+/**
+ * Marca LANCEX: la "X" de trazos paralelos (versión vectorial del logo oficial) y el nombre.
+ * Los trazos oscuros del original van en blanco porque la interfaz es oscura.
+ */
+export function Logo({
+  className,
+  showName = true,
+  size = 'md',
+}: {
+  className?: string
+  /** `lg`: cabecera. */
+  size?: 'md' | 'lg'
+  /** `false`: solo el símbolo. */
+  showName?: boolean
+  /** Se mantiene por compatibilidad: el logo ya es para fondo oscuro. */
+  inverted?: boolean
+}) {
   return (
-    <span className={cn('inline-flex items-center gap-2.5', className)}>
-      {/* Ícono con gradiente dorado */}
-      <span
-        aria-hidden
-        className={cn(
-          'inline-flex size-8 items-center justify-center rounded-xl shadow-sm',
-          inverted
-            ? 'bg-white/12 text-white ring-1 ring-white/20'
-            : 'bg-gradient-to-br from-primary to-[oklch(0.60_0.16_48)] text-primary-foreground shadow-primary/30',
-        )}
-        style={!inverted ? { boxShadow: '0 2px 8px oklch(0.68 0.17 52 / 35%)' } : undefined}
-      >
-        <svg viewBox="0 0 24 24" className="size-4.5" fill="none" stroke="currentColor" strokeWidth="2.2">
-          <path d="m14 13-7.5 7.5a2.12 2.12 0 0 1-3-3L11 10" strokeLinecap="round" />
-          <path d="m16 16 6-6M8 8l6-6M9 7l8 8M21 11l-8-8" strokeLinecap="round" />
-        </svg>
-      </span>
-      {/* Wordmark */}
-      <span className={cn('text-xl font-extrabold tracking-tight', inverted ? 'text-white' : '')}>
-        LANCE
-        <span className={inverted ? 'text-[oklch(0.82_0.18_65)]' : 'text-primary'}>X</span>
-      </span>
+    <span className={cn('inline-flex items-center gap-3', className)}>
+      <LogoMark className={cn('w-auto shrink-0', size === 'lg' ? 'h-10' : 'h-8')} />
+      {showName && (
+        <span
+          className={cn(
+            'font-extrabold tracking-tight text-white',
+            size === 'lg' ? 'text-2xl' : 'text-xl',
+          )}
+        >
+          LANCE<span className="text-link">X</span>
+        </span>
+      )}
     </span>
+  )
+}
+
+export function LogoMark({ className }: { className?: string }) {
+  return (
+    <svg aria-hidden viewBox="220 245 585 533" className={className}>
+      <g fill="#ffffff">
+        <path d="M228 255H390L512 380L632 255H698L460 505Z" />
+        <path d="M518 475L610 453L312 768H228Z" />
+        <path d="M598 555L795 768H698L553 605Z" />
+      </g>
+      <g fill="#3574f6">
+        <path d="M725 255H795L610 453L518 475Z" />
+        <path d="M655 432H717L415 750Q398 768 380 768H337Z" />
+      </g>
+    </svg>
   )
 }

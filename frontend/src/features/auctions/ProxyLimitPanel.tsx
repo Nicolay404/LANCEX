@@ -90,7 +90,7 @@ export function ProxyLimitPanel({
         </p>
       )}
       {own.data?.status === 'exhausted' && (
-        <p className="text-sm text-amber-700">
+        <p className="text-sm text-amber-300">
           Tu máximo anterior fue superado. Puedes fijar uno nuevo.
         </p>
       )}

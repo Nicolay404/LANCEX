@@ -23,7 +23,7 @@ export function StatusBadge({
           <span className="absolute inset-0 animate-ping rounded-full bg-white opacity-60" />
         </span>
       )}
-      {STATUS_LABEL[status] ?? status}
+      {status === 'active' ? 'En vivo' : (STATUS_LABEL[status] ?? status)}
       {resultPending && status === 'closed' ? ' · pendiente' : ''}
     </span>
   )

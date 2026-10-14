@@ -77,5 +77,5 @@ export function ProvisionalPriceNote({
 }) {
   const now = useServerNow()
   if (!inCandleWindow(candle, status, now)) return null
-  return <p className="text-xs text-amber-700">Precio provisional (fase de vela)</p>
+  return <p className="text-xs text-amber-300">Precio provisional (fase de vela)</p>
 }

@@ -162,7 +162,7 @@ function ParticipantCard({
         </table>
       )}
       {failsSome && p.status !== 'rejected' && (
-        <p className="text-xs text-amber-700">Declara que no cumple al menos un requisito.</p>
+        <p className="text-xs text-amber-300">Declara que no cumple al menos un requisito.</p>
       )}
       {p.status === 'rejected' && rejectionText(p.decision_reason) && (
         <p className="text-sm text-muted-foreground">Motivo: {rejectionText(p.decision_reason)}</p>

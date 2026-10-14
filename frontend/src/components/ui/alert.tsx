@@ -6,9 +6,9 @@ import { cn } from '@/lib/utils'
 const alertVariants = cva('relative w-full rounded-xl border px-4 py-3 text-sm', {
   variants: {
     variant: {
-      default: 'border-brand/20 bg-secondary text-secondary-foreground',
-      destructive: 'border-destructive/30 bg-destructive/8 text-destructive',
-      success: 'border-brand/30 bg-brand/10 text-brand-deep dark:text-secondary-foreground',
+      default: 'border-white/10 bg-secondary text-secondary-foreground',
+      destructive: 'border-destructive/40 bg-destructive/10 text-red-200',
+      success: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200',
     },
   },
   defaultVariants: { variant: 'default' },

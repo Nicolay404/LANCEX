@@ -21,11 +21,11 @@ export const STATUS_LABEL: Record<AuctionStatus, string> = {
 }
 
 export const STATUS_TONE: Record<AuctionStatus, string> = {
-  draft: 'bg-muted text-muted-foreground',
-  scheduled: 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300',
+  draft: 'bg-white/10 text-white/80',
+  scheduled: 'bg-primary/90 text-white',
   active: 'bg-live text-white',
-  closed: 'bg-foreground/85 text-background',
-  cancelled: 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300',
+  closed: 'bg-white/15 text-white',
+  cancelled: 'bg-red-950 text-red-200',
 }
 
 export const SOURCE_LABEL: Record<string, string> = {

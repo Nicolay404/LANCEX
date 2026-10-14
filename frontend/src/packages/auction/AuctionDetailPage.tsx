@@ -179,7 +179,7 @@ function AuctionView({ a }: { a: MergedAuction }) {
             {a.status === 'cancelled' && 'Subasta cancelada'}
           </div>
           {a.soft_close?.extended && (
-            <p className="text-xs text-amber-700">
+            <p className="text-xs text-amber-300">
               El cierre se extendió por pujas de último momento (antes:{' '}
               {formatDateTime(a.soft_close.original_ends_at)}).
             </p>

@@ -10,17 +10,17 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          'bg-gradient-to-br from-primary to-[oklch(0.60_0.16_48)] text-primary-foreground shadow-sm shadow-primary/20 hover:shadow-md hover:shadow-primary/30 hover:from-primary/90 hover:to-[oklch(0.56_0.15_47)]',
-        /** Negro/claro según el tema, como los botones "Pujar" de las tarjetas. */
+          'bg-primary text-primary-foreground shadow-sm shadow-primary/25 hover:bg-[#1f66ff] hover:shadow-md hover:shadow-primary/35',
+        /** Blanco sobre negro, para acciones secundarias destacadas. */
         dark: 'bg-foreground text-background shadow-sm hover:bg-foreground/85',
-        /** Sobre superficies de marca (héroe, pie). */
-        light: 'bg-white text-brand-deep shadow-sm hover:bg-white/90',
+        /** Solo borde blanco, sobre superficies de marca (héroe, banners). */
+        light: 'border border-white/70 bg-transparent text-white hover:bg-white/10',
         destructive: 'bg-destructive text-white shadow-xs hover:bg-destructive/90',
         outline:
-          'border border-border bg-card shadow-xs hover:border-foreground/25 hover:bg-accent hover:text-accent-foreground',
+          'border border-border bg-card shadow-xs hover:border-primary/50 hover:bg-accent hover:text-accent-foreground',
         secondary: 'bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80',
         ghost: 'hover:bg-accent hover:text-accent-foreground',
-        link: 'text-primary underline-offset-4 hover:underline',
+        link: 'text-link underline-offset-4 hover:underline',
       },
       size: {
         default: 'h-10 px-5 py-2',

@@ -62,7 +62,7 @@ export function SystemHealthPage() {
                 <span>
                   <strong>{j.dev}</strong> <span className="font-mono text-xs">{j.job}</span>
                 </span>
-                <span className={j.stale ? 'text-red-700' : 'text-muted-foreground'}>
+                <span className={j.stale ? 'text-red-300' : 'text-muted-foreground'}>
                   {j.stale ? 'Sin latido · ' : ''}último {formatDateTime(j.last_run_at)} ·{' '}
                   {j.last_closed_count} cerradas
                 </span>

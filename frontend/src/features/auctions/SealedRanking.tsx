@@ -46,7 +46,7 @@ export function SealedRanking({ auctionId, closed }: { auctionId: string; closed
                   <td className="px-3 py-2 tabular-nums">
                     {r.rank}
                     {r.is_winner && (
-                      <span className="ml-2 rounded bg-emerald-100 px-1.5 text-xs text-emerald-800">
+                      <span className="ml-2 rounded bg-emerald-950 px-1.5 text-xs text-emerald-300">
                         Ganadora
                       </span>
                     )}

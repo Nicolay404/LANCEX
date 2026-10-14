@@ -13,6 +13,7 @@ import { fetchCategories, listingKeys } from '@/features/listings/api'
 import { auctionKeys, fetchCatalog } from './api'
 import { AuctionCard } from './AuctionCard'
 import { Hero } from './Hero'
+import { HomeShowcase } from './HomeShowcase'
 import { MECHANISM_LABEL, STATUS_LABEL } from './labels'
 import type { AuctionStatus, CatalogFilters, Mechanism } from './types'
 
@@ -24,13 +25,6 @@ const ORDERINGS = {
   current_price: 'Menor precio',
 } as const
 type Ordering = keyof typeof ORDERINGS
-
-const MECHANISM_ICONS: Record<string, string> = {
-  '': '🏷️',
-  ascending: '📈',
-  sealed: '🔒',
-  reverse: '🔄',
-}
 
 /** Lee los filtros de la URL (compartibles; nada en localStorage). */
 function filtersFrom(params: URLSearchParams): CatalogFilters {
@@ -88,18 +82,23 @@ export function CatalogPage() {
   const isFiltered = params.toString() !== ''
 
   return (
-    <div className="space-y-10">
-      {!isFiltered && <Hero />}
+    <div className="space-y-16">
+      {!isFiltered && (
+        <>
+          <Hero />
+          <HomeShowcase />
+        </>
+      )}
 
       <section className="space-y-6" aria-labelledby="catalog-title">
         {/* Encabezado de sección */}
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="space-y-1">
-            <p className="flex items-center gap-2 text-xs font-bold tracking-widest text-primary uppercase">
-              <span aria-hidden className="size-1.5 rounded-full bg-primary animate-pulse" />
-              Catálogo en tiempo real
+            <p className="flex items-center gap-2 text-xs font-semibold tracking-widest text-muted-foreground uppercase">
+              <span aria-hidden className="size-1.5 rounded-full bg-primary" />
+              Catálogo completo
             </p>
-            <h2 id="catalog-title" className="text-3xl font-extrabold sm:text-4xl">
+            <h2 id="catalog-title" className="text-3xl font-extrabold text-white">
               Subastas
               {data && (
                 <span className="ml-3 text-xl font-medium text-muted-foreground">
@@ -111,7 +110,9 @@ export function CatalogPage() {
 
           {/* Buscador */}
           <form onSubmit={onSearch} role="search" className="flex w-full max-w-sm gap-2">
-            <label className="sr-only" htmlFor="catalog-q">Buscar</label>
+            <label className="sr-only" htmlFor="catalog-q">
+              Buscar
+            </label>
             <div className="relative flex-1">
               <svg
                 aria-hidden
@@ -154,12 +155,9 @@ export function CatalogPage() {
                   'flex items-center gap-1.5 rounded-full border px-4 py-1.5 text-sm font-semibold transition-all duration-200',
                   active
                     ? 'border-primary bg-primary text-primary-foreground shadow-sm shadow-primary/25'
-                    : 'border-border bg-card text-muted-foreground hover:border-foreground/25 hover:text-foreground hover:bg-accent',
+                    : 'border-white/12 bg-card text-white/70 hover:border-primary/50 hover:text-white',
                 )}
               >
-                <span aria-hidden className="text-base leading-none">
-                  {MECHANISM_ICONS[m]}
-                </span>
                 {m ? MECHANISM_LABEL[m] : 'Todas'}
               </button>
             )
@@ -167,7 +165,7 @@ export function CatalogPage() {
         </div>
 
         {/* Filtros secundarios */}
-        <div className="grid gap-3 rounded-2xl border border-border/60 bg-card/60 p-3 shadow-sm backdrop-blur sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 rounded-2xl border border-white/[0.08] bg-card p-3 sm:grid-cols-2 lg:grid-cols-4">
           <NativeSelect
             aria-label="Categoría"
             value={filters.category}
@@ -212,7 +210,7 @@ export function CatalogPage() {
               checked={!!filters.ending_soon}
               onChange={(e) => update({ ending_soon: e.target.checked ? 'true' : null })}
             />
-            <span>⏱️ Terminan pronto</span>
+            <span>Terminan pronto</span>
           </label>
         </div>
 
@@ -223,7 +221,6 @@ export function CatalogPage() {
           <ErrorAlert error={catalog.error} title="No se pudo cargar el catálogo" />
         ) : data && data.results.length === 0 ? (
           <div className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-border/60 bg-card/40 p-16 text-center">
-            <span className="text-5xl">🔍</span>
             <p className="text-sm text-muted-foreground">No hay subastas con estos filtros.</p>
             <Button
               variant="outline"
@@ -242,7 +239,7 @@ export function CatalogPage() {
               <p className="text-xs font-medium text-muted-foreground" aria-live="polite">
                 {data.count} {data.count === 1 ? 'subasta encontrada' : 'subastas encontradas'}
               </p>
-              <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 3xl:grid-cols-6">
                 {data.results.map((a) => (
                   <AuctionCard key={a.id} auction={a} />
                 ))}

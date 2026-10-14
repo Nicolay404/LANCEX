@@ -20,7 +20,7 @@ function Counter({
   const body = (
     <>
       <span
-        className={cn('text-2xl font-semibold tabular-nums', urgent && value > 0 && 'text-red-700')}
+        className={cn('text-2xl font-semibold tabular-nums', urgent && value > 0 && 'text-red-300')}
       >
         {value}
       </span>

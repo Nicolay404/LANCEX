@@ -534,3 +534,94 @@
   - Capturas en claro y oscuro de catálogo, ingreso, detalle y panel revisadas.
 - Riesgos/bloqueos: hay que correr `npm install` para las tipografías nuevas.
 - Handoff/siguiente paso: commit + PR.
+
+## 2026-10-14T07:13:34-05:00: INICIO: rediseño oscuro premium (negro y azul eléctrico)
+- Humano responsable: Maria (FE)
+- Herramienta/modelo IA (si se conoce): Claude (Cowork), modelo configurado claude-opus-5-5
+- Rama y commit: `frontend-lancex`, base `b8039ba`
+- Objetivo: llevar la interfaz a la nueva referencia de la humana (tema oscuro premium: #0D0D0D, #1E1E1E, azul #0052FF y blanco). Decisiones de la humana: mantener la marca LANCEX con la X, solo modo oscuro, y agregar en la portada banners destacados, píldoras por categoría y "Cómo funciona". Testimonios y blog no se agregan: no hay datos reales en el backend.
+- Componentes/archivos modificados: solo presentación en `frontend/`; sin cambios de API, rutas ni reglas.
+- Pruebas ejecutadas y resultado real: pendiente.
+- Riesgos/bloqueos: la portada hace dos consultas extra al catálogo (activas y por categoría).
+- Handoff/siguiente paso: implementar.
+
+## 2026-10-14T07:31:02-05:00: CIERRE: rediseño oscuro premium (negro y azul eléctrico)
+- Humano responsable: Maria (FE)
+- Herramienta/modelo IA (si se conoce): Claude (Cowork), modelo configurado claude-opus-5-5
+- Rama y commit: `frontend-lancex`, sin commit (lo hace la humana).
+- Objetivo: tema oscuro negro/azul y portada ampliada.
+- Componentes/archivos modificados (todo en `frontend/src/`):
+  - Nuevos: `features/auctions/HomeShowcase.tsx` (destacadas con cuenta regresiva, en vivo, en vivo por categoría con píldoras de `/categories/`, cómo funciona), `features/auctions/TimerPill.tsx` (reloj HH:MM:SS con la hora del servidor).
+  - Modificados: `index.css` (tokens solo oscuros, `--link` para texto azul legible, retícula `.grid-surface`), `components/Logo.tsx` (X blanca y azul), `components/ui/{button,alert}.tsx`, `app/AppLayout.tsx` (cabecera con "Crear subasta" según `auction.create_personal`, pie negro), `features/auctions/{Hero,AuctionCard,CatalogPage,StatusBadge,auctionArt,labels}`, `features/auth/AuthCard.tsx`, `features/me/types.ts` y colores claros sueltos en `CandlePhase`, `ProxyLimitPanel`, `SealedRanking`, `AuctionDetailPage`, `AuctionResultPage`, `QualificationPage`, `NotificationsPage`, `UserPanelPage`, `UsersPage`, `SystemHealthPage`, `Inbox`, `UserFilePage`.
+  - Prueba: `features/auctions/auctions.test.tsx` (el catálogo se revisa dentro de su región; nueva prueba de la portada).
+- Decisiones/supuestos:
+  - `text-primary` pasa a `text-link` (#6B97FF): el azul #0052FF como texto sobre negro no llega a AA; se usa solo como relleno de botones (blanco sobre #0052FF ≈ 6,5:1).
+  - El badge de estado activo dice "En vivo"; el filtro "Estado" sigue con las etiquetas de siempre.
+  - Sin fotos en el catálogo (el contrato no las trae): las tarjetas usan arte por modalidad.
+- Pruebas ejecutadas y resultado real:
+  - Cloud, Node 22.22.0: `tsc -b --noEmit` OK; `npm run lint` OK; prettier OK; Vitest 22 archivos / 182 pruebas en verde; `npm run build` OK.
+  - `npm run e2e` contra backend local (HEAD `8bdaf6f`, `seed_demo`): 4/4 en verde (5.6 min).
+  - Capturas revisadas: portada completa, detalle, ingreso y panel.
+- Riesgos/bloqueos: ninguno nuevo.
+- Handoff/siguiente paso: commit + PR.
+
+## 2026-10-14T07:45:23-05:00: CIERRE: logo oficial de LANCEX
+- Humano responsable: Maria (FE)
+- Herramienta/modelo IA (si se conoce): Claude (Cowork), modelo configurado claude-opus-5-5
+- Rama y commit: `frontend-lancex`, sin commit (lo hace la humana).
+- Objetivo: usar el logo entregado por la humana (X de trazos paralelos azul marino y azul).
+- Componentes/archivos modificados: `frontend/src/components/Logo.tsx` (versión vectorial del logo; nuevo `LogoMark` y opción `showName`), `frontend/public/favicon.svg` (ícono de pestaña sobre fondo negro). Los trazos azul marino del original van en blanco por el tema oscuro.
+- Pruebas ejecutadas y resultado real: `npm run lint` OK; Vitest 182/182 en verde; `npm run build` OK; capturas de cabecera e ingreso revisadas.
+- Riesgos/bloqueos: ninguno.
+- Handoff/siguiente paso: commit + PR.
+
+## 2026-10-14T12:43:56-05:00: CIERRE: fotos ilustrativas por categoría
+- Humano responsable: Maria (FE)
+- Herramienta/modelo IA (si se conoce): Claude (Cowork), modelo configurado claude-opus-5-5
+- Rama y commit: `frontend-lancex`, sin commit (lo hace la humana).
+- Objetivo: mostrar fotos por enlace (decisión de la humana: foto por categoría).
+- Componentes/archivos modificados (`frontend/src/`): nuevo `features/auctions/categoryPhotos.ts` (fotos de Unsplash por categoría, enlazadas a su CDN); `AuctionCard`, `Hero` (mosaico con fotos), `HomeShowcase` (foto en los banners) y `packages/auction/Gallery.tsx` (sin fotos propias muestra la de la categoría con la leyenda "Imagen ilustrativa de la categoría"; con fotos propias usa siempre las de la publicación).
+- Decisiones/supuestos: `GET /auctions/` no trae fotos, así que en tarjetas y banners la foto es de la categoría (la inversa sin categoría usa la de insumos). Las fotos se cargan con `referrerPolicy="no-referrer"` y `loading="lazy"`.
+- Pruebas ejecutadas y resultado real: prettier y lint OK; Vitest 182/182 en verde; `npm run build` OK; capturas de portada y detalle revisadas (fotos servidas desde el navegador de la humana porque el entorno cloud no llega a Unsplash).
+- Riesgos/bloqueos: la foto de categoría puede no coincidir con el artículo (p. ej. bicicleta en Vehículos). Para fotos reales en el catálogo haría falta que `GET /auctions/` devuelva la portada de la publicación (pedido a backend, no hecho).
+- Handoff/siguiente paso: commit + PR.
+
+## 2026-10-14T12:50:04-05:00: CIERRE: diseño a ancho completo
+- Humano responsable: Maria (FE)
+- Herramienta/modelo IA (si se conoce): Claude (Cowork), modelo configurado claude-opus-5-5
+- Rama y commit: `frontend-lancex`, sin commit (lo hace la humana).
+- Objetivo: que cabecera, contenido y pie ocupen casi todo el ancho de la pantalla.
+- Componentes/archivos modificados (`frontend/src/`): `app/AppLayout.tsx` (contenedores de `max-w-7xl` a `max-w-[1920px]` con márgenes laterales de 16 a 56 px según el ancho), `index.css` (punto de quiebre `3xl` en 112rem) y `features/auctions/CatalogPage.tsx` (6 columnas en el catálogo desde `3xl`).
+- Pruebas ejecutadas y resultado real: typecheck, lint y prettier OK; Vitest 182/182 en verde; `npm run build` OK; capturas a 1366 y 1920 px revisadas.
+- Riesgos/bloqueos: ninguno.
+- Handoff/siguiente paso: commit + PR.
+
+## 2026-10-14T15:25:03-05:00: CIERRE: cabecera más grande
+- Humano responsable: Maria (FE)
+- Herramienta/modelo IA (si se conoce): Claude (Cowork), modelo configurado claude-opus-5-5
+- Rama y commit: `frontend-lancex`, sin commit (lo hace la humana).
+- Objetivo: agrandar la cabecera.
+- Componentes/archivos modificados (`frontend/src/`): `app/AppLayout.tsx` (alto 80 px, menú a 15 px, botones, selector de contexto y "Salir" de 44 px), `components/Logo.tsx` (tamaño `lg` para la cabecera: símbolo de 40 px y nombre en `text-2xl`), `features/notifications/NotificationBell.tsx` (campana de 44 px).
+- Pruebas ejecutadas y resultado real: lint y prettier OK; Vitest 182/182 en verde; `npm run build` OK; capturas de la cabecera con sesión a 1400 y 1920 px, en una sola línea.
+- Riesgos/bloqueos: ninguno.
+- Handoff/siguiente paso: commit + PR.
+
+## 2026-10-14T15:36:07-05:00: CIERRE: portada distinta con sesión iniciada
+- Humano responsable: Maria (FE)
+- Herramienta/modelo IA (si se conoce): Claude (Cowork), modelo configurado claude-opus-5-5
+- Rama y commit: `frontend-lancex`, sin commit (lo hace la humana).
+- Objetivo: con sesión iniciada, reemplazar el héroe "Descubre y puja en subastas exclusivas" por otro diseño.
+- Componentes/archivos modificados (`frontend/src/features/auctions/`): nuevo `WelcomePanel.tsx` (saludo según la hora con el nombre, accesos según capacidades: Crear subasta, Mis pujas, Mis publicaciones, Explorar en vivo; y cuatro cifras de `GET /me/summary/` solo con `bid.place`: vas ganando, te superaron, mis subastas activas, avisos sin leer); `Hero.tsx` (con sesión muestra `WelcomePanel`; el héroe queda para visitantes); `auctions.test.tsx` (prueba nueva).
+- Pruebas ejecutadas y resultado real: typecheck, lint y prettier OK; Vitest 183/183 en verde; `npm run build` OK; capturas con sesión a 1400 y 1920 px revisadas.
+- Riesgos/bloqueos: ninguno (reutiliza la misma consulta del panel, misma clave de caché).
+- Handoff/siguiente paso: commit + PR.
+
+## 2026-10-14T15:43:20-05:00: CIERRE: rediseño de Mi actividad (`/panel`)
+- Humano responsable: Maria (FE)
+- Herramienta/modelo IA (si se conoce): Claude (Cowork), modelo configurado claude-opus-5-5
+- Rama y commit: `frontend-lancex`, sin commit (lo hace la humana).
+- Objetivo: mejorar la interfaz de Mi actividad.
+- Componentes/archivos modificados: `frontend/src/packages/user/UserPanelPage.tsx` (encabezado con accesos a Mis pujas y Mis subastas; aviso destacado de notificaciones sin leer; tarjetas "Mis pujas" y "Mis subastas" con cifras con icono y color; resumen de operaciones con montos grandes, etiqueta de liquidaciones pendientes y la nota informativa; secciones "Subastas que sigo" y "Mis subastas en vivo" con 4 tarjetas y estados vacíos con enlace). Mismos datos y endpoints (`/me/summary/`, catálogo con `mine`).
+- Pruebas ejecutadas y resultado real: typecheck y lint OK; Vitest 183/183 en verde (las pruebas de `/panel` siguen pasando sin cambios); `npm run build` OK; captura a 1600 px revisada.
+- Riesgos/bloqueos: ninguno.
+- Handoff/siguiente paso: commit + PR.

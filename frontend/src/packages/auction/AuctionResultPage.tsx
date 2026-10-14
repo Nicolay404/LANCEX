@@ -197,7 +197,7 @@ function ViewerOutcome({ a, r }: { a: AuctionDetail; r: AuctionResult }) {
 
 function Stars({ score }: { score: number }) {
   return (
-    <span aria-label={`${score} de 5`} className="text-amber-600">
+    <span aria-label={`${score} de 5`} className="text-amber-400">
       {'★'.repeat(score)}
       <span className="text-muted-foreground">{'☆'.repeat(5 - score)}</span>
     </span>

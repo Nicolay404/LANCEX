@@ -50,9 +50,10 @@ const NAV_ITEMS: NavItem[] = [
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
   cn(
-    'relative rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-200',
-    'text-foreground/60 hover:text-foreground hover:bg-accent',
-    isActive && 'text-primary font-semibold bg-primary/[0.08] hover:bg-primary/[0.12] hover:text-primary',
+    'relative rounded-lg px-3 py-2 text-[15px] font-medium transition-colors duration-200',
+    'text-foreground/70 hover:text-white',
+    isActive &&
+      'text-link after:absolute after:inset-x-2.5 after:-bottom-0.5 after:h-0.5 after:rounded-full after:bg-primary hover:text-white',
   )
 
 export function AppLayout() {
@@ -61,13 +62,11 @@ export function AppLayout() {
   return (
     <div className="flex min-h-svh flex-col">
       {/* Header con glassmorphism premium */}
-      <header className="sticky top-0 z-30 border-b border-white/[0.06] bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70">
-        {/* Línea decorativa dorada superior */}
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
-        <div className="mx-auto flex min-h-16 max-w-7xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-2 sm:px-6">
-          <div className="flex flex-wrap items-center gap-5">
+      <header className="sticky top-0 z-30 border-b border-white/[0.07] bg-background/85 backdrop-blur-xl">
+        <div className="mx-auto flex min-h-20 w-full max-w-[1920px] flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-3 sm:px-6 lg:px-10 2xl:px-14">
+          <div className="flex flex-wrap items-center gap-6">
             <NavLink to="/" aria-label="LANCEX, inicio" className="shrink-0">
-              <Logo />
+              <Logo size="lg" />
             </NavLink>
             <nav aria-label="Principal" className="flex flex-wrap items-center gap-0.5 text-sm">
               {NAV_ITEMS.filter((i) => i.visible(me)).map((i) => (
@@ -81,7 +80,7 @@ export function AppLayout() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6">
+      <main className="mx-auto w-full max-w-[1920px] flex-1 px-4 py-8 sm:px-6 lg:px-10 2xl:px-14">
         <Outlet />
       </main>
 
@@ -92,20 +91,17 @@ export function AppLayout() {
 
 function Footer() {
   return (
-    <footer className="mt-16 overflow-hidden" style={{ background: 'var(--brand-deep)' }}>
-      {/* Línea decorativa superior */}
-      <div className="h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
-
-      <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
+    <footer className="mt-20 overflow-hidden border-t border-white/[0.07] bg-brand-deep">
+      <div className="mx-auto w-full max-w-[1920px] px-4 py-14 sm:px-6 lg:px-10 2xl:px-14">
         <div className="grid gap-10 lg:grid-cols-[1.5fr_1fr_1fr]">
           {/* Columna marca */}
           <div className="space-y-4">
-            <Logo inverted />
-            <p className="max-w-xs text-sm leading-relaxed text-white/55">
-              Subastas en línea con reglas transparentes: ascendente, sobre cerrado, cierre por
-              vela y compras B2B a la baja.
+            <Logo />
+            <p className="max-w-xs text-sm leading-relaxed text-white/65">
+              Subastas en línea con reglas transparentes: ascendente, sobre cerrado, cierre por vela
+              y compras B2B a la baja.
             </p>
-            <p className="text-xs text-white/35">
+            <p className="text-xs text-white/55">
               LANCEX no procesa pagos ni envíos. Comprador y vendedor coordinan la entrega.
             </p>
             {/* Badges de modalidades */}
@@ -113,7 +109,7 @@ function Footer() {
               {['Ascendente', 'Sobre cerrado', 'Vela', 'Inversa B2B'].map((m) => (
                 <span
                   key={m}
-                  className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-xs font-medium text-white/50"
+                  className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-xs font-medium text-white/65"
                 >
                   {m}
                 </span>
@@ -123,30 +119,24 @@ function Footer() {
 
           {/* Columna Explorar */}
           <div className="space-y-3">
-            <p className="text-xs font-bold tracking-widest text-primary/80 uppercase">Explorar</p>
-            <ul className="space-y-2.5 text-sm text-white/50">
+            <p className="text-xs font-bold tracking-widest text-white uppercase">Explorar</p>
+            <ul className="space-y-2.5 text-sm text-white/65">
               <li>
                 <NavLink
                   to="/?status=active"
-                  className="flex items-center gap-2 transition-colors hover:text-primary"
+                  className="flex items-center gap-2 transition-colors hover:text-white"
                 >
                   <span className="size-1.5 rounded-full bg-live animate-pulse" />
                   Subastas en vivo
                 </NavLink>
               </li>
               <li>
-                <NavLink
-                  to="/?status=scheduled"
-                  className="transition-colors hover:text-primary"
-                >
+                <NavLink to="/?status=scheduled" className="transition-colors hover:text-white">
                   Próximas subastas
                 </NavLink>
               </li>
               <li>
-                <NavLink
-                  to="/?mechanism=reverse"
-                  className="transition-colors hover:text-primary"
-                >
+                <NavLink to="/?mechanism=reverse" className="transition-colors hover:text-white">
                   Compras B2B
                 </NavLink>
               </li>
@@ -155,10 +145,8 @@ function Footer() {
 
           {/* Columna Modalidades */}
           <div className="space-y-3">
-            <p className="text-xs font-bold tracking-widest text-primary/80 uppercase">
-              Modalidades
-            </p>
-            <ul className="space-y-2.5 text-sm text-white/50">
+            <p className="text-xs font-bold tracking-widest text-white uppercase">Modalidades</p>
+            <ul className="space-y-2.5 text-sm text-white/65">
               <li>Ascendente con puja automática</li>
               <li>Sobre cerrado</li>
               <li>Cierre por vela verificable</li>
@@ -169,12 +157,12 @@ function Footer() {
 
         {/* Copyright */}
         <div className="mt-12 flex items-center justify-between border-t border-white/[0.07] pt-6">
-          <p className="text-xs text-white/30">
+          <p className="text-xs text-white/50">
             LANCEX · plataforma de subastas · proyecto académico
           </p>
           <div className="flex items-center gap-1.5">
             <span className="size-1.5 rounded-full bg-primary/60 animate-pulse" />
-            <span className="text-xs text-white/30">Sistema activo</span>
+            <span className="text-xs text-white/50">Sistema activo</span>
           </div>
         </div>
       </div>
@@ -185,17 +173,11 @@ function Footer() {
 function GuestMenu() {
   return (
     <div className="flex items-center gap-2 text-sm">
-      <NavLink
-        to="/ingresar"
-        className="rounded-lg px-3 py-1.5 font-medium text-foreground/60 transition-all hover:text-foreground hover:bg-accent"
-      >
-        Ingresar
-      </NavLink>
-      <Button asChild size="sm" className="gap-1.5 shadow-sm shadow-primary/20">
-        <NavLink to="/registro">
-          <span aria-hidden>✦</span>
-          Crear cuenta
-        </NavLink>
+      <Button asChild variant="light" className="h-11 px-6">
+        <NavLink to="/ingresar">Ingresar</NavLink>
+      </Button>
+      <Button asChild className="h-11 px-6">
+        <NavLink to="/registro">Crear cuenta</NavLink>
       </Button>
     </div>
   )
@@ -206,29 +188,33 @@ function UserMenu({ me }: { me: UserMe }) {
   return (
     <div className="flex flex-wrap items-center gap-2 text-sm">
       {me.organizations.length > 0 && <ContextSelector me={me} />}
+      {hasCapability(me, Cap.AUCTION_CREATE_PERSONAL) && (
+        <Button asChild className="h-11 px-6">
+          <NavLink to="/mis-subastas/nueva">Crear subasta</NavLink>
+        </Button>
+      )}
       {hasCapability(me, Cap.NOTIFICATION_READ_OWN) && <NotificationBell />}
       {hasCapability(me, Cap.ACCOUNT_MANAGE_OWN) && (
         <NavLink
           to="/cuenta"
-          className="flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-sm font-medium transition-all hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
+          className="flex items-center gap-2 rounded-lg border border-border px-2 py-1.5 text-[15px] font-medium transition-all 2xl:px-3.5 2xl:py-2 hover:border-primary/40 hover:bg-primary/5 hover:text-white"
           title="Mi cuenta"
         >
           {/* Avatar con inicial */}
           <span
             aria-hidden
-            className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary"
+            className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-bold text-link"
           >
             {me.display_name.charAt(0).toUpperCase()}
           </span>
-          <span className="max-w-28 truncate">{me.display_name}</span>
+          <span className="max-w-28 truncate max-2xl:sr-only">{me.display_name}</span>
         </NavLink>
       )}
       <Button
         variant="ghost"
-        size="sm"
         onClick={() => void logout()}
         disabled={pending}
-        className="text-foreground/50 hover:text-foreground"
+        className="h-11 text-[15px] text-foreground/60 hover:text-foreground"
       >
         {pending ? 'Saliendo…' : 'Salir'}
       </Button>
@@ -248,7 +234,7 @@ function ContextSelector({ me }: { me: UserMe }) {
     <label className="flex items-center gap-2">
       <span className="sr-only">Contexto activo</span>
       <select
-        className="h-9 max-w-44 truncate rounded-lg border border-border bg-card px-2 text-sm font-medium transition-colors hover:border-primary/40 focus:outline-none focus:ring-2 focus:ring-ring/50"
+        className="h-11 max-w-40 truncate rounded-lg border border-border bg-card px-3 text-[15px] font-medium transition-colors hover:border-primary/40 focus:outline-none focus:ring-2 focus:ring-ring/50"
         value={current}
         onChange={(e) => void navigate(e.target.value ? `/org/${e.target.value}` : '/')}
       >

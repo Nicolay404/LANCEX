@@ -74,12 +74,12 @@ export const MY_STATUS_LABEL: Record<MyStatus, string> = {
 }
 
 export const MY_STATUS_TONE: Record<MyStatus, string> = {
-  leading: 'bg-emerald-100 text-emerald-800',
-  outbid: 'bg-red-100 text-red-800',
-  offer_submitted: 'bg-sky-100 text-sky-800',
+  leading: 'bg-emerald-500/15 text-emerald-300',
+  outbid: 'bg-red-500/15 text-red-300',
+  offer_submitted: 'bg-primary/20 text-link',
   offer_withdrawn: 'bg-muted text-muted-foreground',
-  pending_result: 'bg-amber-100 text-amber-800',
-  won: 'bg-emerald-100 text-emerald-800',
+  pending_result: 'bg-amber-500/15 text-amber-300',
+  won: 'bg-emerald-500/15 text-emerald-300',
   lost: 'bg-muted text-muted-foreground',
   cancelled: 'bg-muted text-muted-foreground',
 }
